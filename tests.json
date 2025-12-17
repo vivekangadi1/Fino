@@ -1,0 +1,143 @@
+{
+  "last_updated": "2024-12-16T00:00:00Z",
+  "current_phase": "PHASE_6_COMPLETE",
+  "summary": {
+    "total": 78,
+    "passing": 78,
+    "failing": 0,
+    "not_started": 0
+  },
+  "test_suites": [
+    {
+      "name": "SmsParserTest",
+      "file": "app/src/test/java/com/fino/app/service/parser/SmsParserTest.kt",
+      "tests": [
+        {"name": "parse_HDFC_UPI_debit_SMS_extracts_correct_amount", "status": "not_started"},
+        {"name": "parse_HDFC_UPI_debit_SMS_extracts_merchant_name", "status": "not_started"},
+        {"name": "parse_HDFC_UPI_debit_SMS_extracts_transaction_date", "status": "not_started"},
+        {"name": "parse_HDFC_UPI_debit_SMS_extracts_UPI_reference", "status": "not_started"},
+        {"name": "parse_SBI_UPI_debit_SMS_different_format", "status": "not_started"},
+        {"name": "parse_UPI_SMS_with_INR_instead_of_Rs", "status": "not_started"},
+        {"name": "parse_UPI_SMS_with_comma_in_amount", "status": "not_started"},
+        {"name": "parse_UPI_SMS_with_decimal_amount", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_transaction_extracts_amount", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_transaction_extracts_card_last_four", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_transaction_extracts_bank_name", "status": "not_started"},
+        {"name": "parse_ICICI_credit_card_transaction_different_format", "status": "not_started"},
+        {"name": "parse_SBI_credit_card_transaction_yet_another_format", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_bill_extracts_total_due", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_bill_extracts_minimum_due", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_bill_extracts_due_date", "status": "not_started"},
+        {"name": "parse_HDFC_credit_card_bill_extracts_card_last_four", "status": "not_started"},
+        {"name": "parse_ICICI_credit_card_bill_different_format", "status": "not_started"},
+        {"name": "parse_Google_Play_subscription_flags_as_likely_subscription", "status": "not_started"},
+        {"name": "parse_Netflix_subscription_flags_as_likely_subscription", "status": "not_started"},
+        {"name": "parse_Amazon_Prime_subscription_flags_as_likely_subscription", "status": "not_started"},
+        {"name": "return_null_for_OTP_SMS", "status": "not_started"},
+        {"name": "return_null_for_promotional_SMS", "status": "not_started"},
+        {"name": "return_null_for_balance_inquiry_SMS", "status": "not_started"},
+        {"name": "return_null_for_payment_reminder_SMS", "status": "not_started"},
+        {"name": "handle_merchant_name_with_special_characters", "status": "not_started"},
+        {"name": "handle_very_large_amount", "status": "not_started"},
+        {"name": "handle_amount_without_decimal", "status": "not_started"},
+        {"name": "high_confidence_for_well_formatted_SMS", "status": "not_started"},
+        {"name": "lower_confidence_for_ambiguous_SMS", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "MerchantMatcherTest",
+      "file": "app/src/test/java/com/fino/app/ml/MerchantMatcherTest.kt",
+      "tests": [
+        {"name": "exact_match_returns_mapping_with_high_confidence", "status": "not_started"},
+        {"name": "fuzzy_match_returns_mapping_with_medium_confidence_and_requires_confirmation", "status": "not_started"},
+        {"name": "no_match_returns_null_mapping", "status": "not_started"},
+        {"name": "calculate_similarity_identical_strings_return_1", "status": "not_started"},
+        {"name": "calculate_similarity_similar_strings_return_high_score", "status": "not_started"},
+        {"name": "calculate_similarity_different_strings_return_low_score", "status": "not_started"},
+        {"name": "calculate_similarity_case_insensitive", "status": "not_started"},
+        {"name": "calculate_similarity_handles_extra_spaces", "status": "not_started"},
+        {"name": "fuzzy_match_identifies_similar_merchants_across_branches", "status": "not_started"},
+        {"name": "confirm_fuzzy_match_creates_new_mapping", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "FuzzyMatcherTest",
+      "file": "app/src/test/java/com/fino/app/ml/FuzzyMatcherTest.kt",
+      "tests": [
+        {"name": "identical_strings_return_similarity_1", "status": "not_started"},
+        {"name": "similar_strings_return_high_similarity", "status": "not_started"},
+        {"name": "different_strings_return_low_similarity", "status": "not_started"},
+        {"name": "empty_string_returns_0", "status": "not_started"},
+        {"name": "case_insensitive_matching", "status": "not_started"},
+        {"name": "whitespace_normalization", "status": "not_started"},
+        {"name": "find_best_match_returns_highest_score", "status": "not_started"},
+        {"name": "find_best_match_returns_null_below_threshold", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "StreakTrackerTest",
+      "file": "app/src/test/java/com/fino/app/gamification/StreakTrackerTest.kt",
+      "tests": [
+        {"name": "first_activity_starts_streak_at_1", "status": "not_started"},
+        {"name": "consecutive_day_increases_streak", "status": "not_started"},
+        {"name": "same_day_activity_does_not_increase_streak", "status": "not_started"},
+        {"name": "missed_one_day_resets_streak_to_1", "status": "not_started"},
+        {"name": "new_streak_exceeds_longest_updates_longest_streak", "status": "not_started"},
+        {"name": "streak_below_longest_does_not_update_longest", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "LevelCalculatorTest",
+      "file": "app/src/test/java/com/fino/app/gamification/LevelCalculatorTest.kt",
+      "tests": [
+        {"name": "0_XP_is_level_1", "status": "not_started"},
+        {"name": "99_XP_is_still_level_1", "status": "not_started"},
+        {"name": "100_XP_is_level_2", "status": "not_started"},
+        {"name": "299_XP_is_still_level_2", "status": "not_started"},
+        {"name": "300_XP_is_level_3", "status": "not_started"},
+        {"name": "3000_XP_is_max_level_8", "status": "not_started"},
+        {"name": "10000_XP_is_still_max_level_8", "status": "not_started"},
+        {"name": "progress_to_next_level_from_level_1_at_50_XP", "status": "not_started"},
+        {"name": "progress_at_max_level_shows_100_percent", "status": "not_started"},
+        {"name": "get_level_name_for_level_1", "status": "not_started"},
+        {"name": "get_level_name_for_level_8", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "AchievementTrackerTest",
+      "file": "app/src/test/java/com/fino/app/gamification/AchievementTrackerTest.kt",
+      "tests": [
+        {"name": "unlock_streak_7_at_7_day_streak", "status": "not_started"},
+        {"name": "do_not_unlock_already_unlocked_achievement", "status": "not_started"},
+        {"name": "unlock_txn_100_at_100_transactions", "status": "not_started"},
+        {"name": "award_XP_when_achievement_unlocked", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "CalculateBudgetUseCaseTest",
+      "file": "app/src/test/java/com/fino/app/domain/usecase/CalculateBudgetUseCaseTest.kt",
+      "tests": [
+        {"name": "calculate_monthly_spending_sums_debit_transactions_only", "status": "not_started"},
+        {"name": "budget_health_calculates_remaining_after_bills", "status": "not_started"},
+        {"name": "budget_health_safe_status_when_under_budget", "status": "not_started"},
+        {"name": "budget_health_warning_status_at_75_percent", "status": "not_started"},
+        {"name": "category_budget_progress_calculates_percentage", "status": "not_started"}
+      ]
+    },
+    {
+      "name": "AmountFormatterTest",
+      "file": "app/src/test/java/com/fino/app/util/AmountFormatterTest.kt",
+      "tests": [
+        {"name": "format_small_amount_with_rupee_symbol", "status": "not_started"},
+        {"name": "format_amount_with_paise", "status": "not_started"},
+        {"name": "format_thousands_with_comma", "status": "not_started"},
+        {"name": "format_lakhs_in_compact_notation", "status": "not_started"},
+        {"name": "format_thousands_in_compact_notation", "status": "not_started"},
+        {"name": "format_sub_thousand_not_compact", "status": "not_started"},
+        {"name": "format_crores_in_compact_notation", "status": "not_started"},
+        {"name": "format_zero", "status": "not_started"},
+        {"name": "format_negative_amount", "status": "not_started"}
+      ]
+    }
+  ]
+}

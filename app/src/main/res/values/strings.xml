@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fino</string>
+    <string name="app_tagline">Track Smart. Spend Wise.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_cards">Cards</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home Screen -->
+    <string name="total_spending">Total Spending</string>
+    <string name="this_month">This Month</string>
+    <string name="uncategorized">Uncategorized</string>
+    <string name="transactions">Transactions</string>
+    <string name="add_transaction">Add Transaction</string>
+
+    <!-- Transaction -->
+    <string name="amount">Amount</string>
+    <string name="merchant">Merchant</string>
+    <string name="category">Category</string>
+    <string name="date">Date</string>
+    <string name="notes">Notes</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+
+    <!-- Categories -->
+    <string name="select_category">Select Category</string>
+    <string name="all_categories">All Categories</string>
+
+    <!-- Credit Cards -->
+    <string name="credit_cards">Credit Cards</string>
+    <string name="add_card">Add Card</string>
+    <string name="bank_name">Bank Name</string>
+    <string name="card_name">Card Name (Optional)</string>
+    <string name="last_four_digits">Last 4 Digits</string>
+    <string name="credit_limit">Credit Limit</string>
+    <string name="billing_cycle">Billing Cycle Day</string>
+    <string name="due_date">Due Date</string>
+    <string name="current_due">Current Due</string>
+    <string name="minimum_due">Minimum Due</string>
+
+    <!-- Budget -->
+    <string name="budget">Budget</string>
+    <string name="set_budget">Set Budget</string>
+    <string name="monthly_limit">Monthly Limit</string>
+    <string name="spent">Spent</string>
+    <string name="remaining">Remaining</string>
+    <string name="over_budget">Over Budget</string>
+
+    <!-- Analytics -->
+    <string name="spending_breakdown">Spending Breakdown</string>
+    <string name="trends">Trends</string>
+    <string name="export_csv">Export to CSV</string>
+
+    <!-- Gamification -->
+    <string name="level">Level</string>
+    <string name="xp">XP</string>
+    <string name="streak">Streak</string>
+    <string name="achievements">Achievements</string>
+    <string name="day_streak">%d Day Streak</string>
+
+    <!-- Permissions -->
+    <string name="sms_permission_title">SMS Permission Required</string>
+    <string name="sms_permission_message">Fino needs SMS permission to automatically read transaction messages and save you time.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="skip">Skip</string>
+
+    <!-- Settings -->
+    <string name="app_lock">App Lock</string>
+    <string name="biometric_lock">Biometric Lock</string>
+    <string name="backup">Backup</string>
+    <string name="restore">Restore</string>
+    <string name="export_data">Export Data</string>
+    <string name="about">About</string>
+    <string name="version">Version</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_invalid_amount">Please enter a valid amount</string>
+    <string name="error_select_category">Please select a category</string>
+
+    <!-- Empty States -->
+    <string name="no_transactions">No transactions yet</string>
+    <string name="no_cards">No credit cards added</string>
+    <string name="no_achievements">No achievements unlocked yet</string>
+</resources>

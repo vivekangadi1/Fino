@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary brand colors -->
+    <color name="fino_primary">#1E88E5</color>
+    <color name="fino_secondary">#26A69A</color>
+    <color name="fino_accent">#FFB300</color>
+
+    <!-- Light theme -->
+    <color name="fino_light_background">#FAFAFA</color>
+    <color name="fino_light_surface">#FFFFFF</color>
+
+    <!-- Dark theme -->
+    <color name="fino_dark_background">#121212</color>
+    <color name="fino_dark_surface">#1E1E1E</color>
+
+    <!-- Status colors -->
+    <color name="fino_success">#4CAF50</color>
+    <color name="fino_warning">#FF9800</color>
+    <color name="fino_error">#E53935</color>
+
+    <!-- Transaction colors -->
+    <color name="fino_debit">#E53935</color>
+    <color name="fino_credit">#4CAF50</color>
+</resources>
