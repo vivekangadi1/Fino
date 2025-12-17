@@ -17,7 +17,7 @@ import com.fino.app.data.local.entity.*
         UserStatsEntity::class,
         AchievementEntity::class
     ],
-    version = 3,  // Bumped to 3: removed FK constraints, using soft references
+    version = 4,  // Bumped to 4: fixed achievement schema in seeding
     exportSchema = false
 )
 @TypeConverters(Converters::class)

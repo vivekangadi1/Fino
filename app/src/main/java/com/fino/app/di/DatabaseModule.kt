@@ -106,14 +106,15 @@ object DatabaseModule {
     }
 
     private fun seedAchievements(db: SupportSQLiteDatabase) {
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (1, 'First Steps', 'Log your first transaction', '🎯', 1, 0, 0, NULL, 'transactions')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (2, 'Getting Started', 'Log 10 transactions', '📝', 10, 0, 0, NULL, 'transactions')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (3, 'Streak Starter', 'Maintain a 3-day streak', '🔥', 3, 0, 0, NULL, 'streaks')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (4, 'Week Warrior', 'Maintain a 7-day streak', '💪', 7, 0, 0, NULL, 'streaks')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (5, 'Budget Planner', 'Create your first budget', '📊', 1, 0, 0, NULL, 'budgets')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (6, 'Card Collector', 'Add your first credit card', '💳', 1, 0, 0, NULL, 'cards')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (7, 'Century Club', 'Log 100 transactions', '💯', 100, 0, 0, NULL, 'transactions')")
-        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, iconEmoji, requiredProgress, currentProgress, isUnlocked, unlockedAt, category) VALUES (8, 'Month Master', 'Maintain a 30-day streak', '🏆', 30, 0, 0, NULL, 'streaks')")
+        // AchievementEntity schema: id (String), name, description, emoji, xpReward, requirement, type, unlockedAt, progress
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('txn_1', 'First Steps', 'Log your first transaction', '🎯', 10, 1, 'TRANSACTION_COUNT', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('txn_10', 'Getting Started', 'Log 10 transactions', '📝', 25, 10, 'TRANSACTION_COUNT', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('streak_3', 'Streak Starter', 'Maintain a 3-day streak', '🔥', 15, 3, 'STREAK', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('streak_7', 'Week Warrior', 'Maintain a 7-day streak', '💪', 50, 7, 'STREAK', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('budget_1', 'Budget Planner', 'Create your first budget', '📊', 20, 1, 'BUDGET', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('card_1', 'Card Collector', 'Add your first credit card', '💳', 15, 1, 'CREDIT_CARD', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('txn_100', 'Century Club', 'Log 100 transactions', '💯', 100, 100, 'TRANSACTION_COUNT', NULL, 0)")
+        db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('streak_30', 'Month Master', 'Maintain a 30-day streak', '🏆', 200, 30, 'STREAK', NULL, 0)")
     }
 
     @Provides
