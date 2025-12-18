@@ -1,20 +1,22 @@
 package com.fino.app.domain.model
 
 /**
- * Type of transaction - money going out or coming in
+ * Type of transaction - money going out, coming in, or saved
  */
 enum class TransactionType {
-    DEBIT,  // Money spent/going out
-    CREDIT  // Money received/coming in
+    DEBIT,   // Money spent/going out (expenses)
+    CREDIT,  // Money received/coming in (income)
+    SAVINGS  // Money set aside (investments, FD, emergency fund)
 }
 
 /**
  * Source of the transaction record
  */
 enum class TransactionSource {
-    SMS,    // Automatically parsed from SMS
-    MANUAL, // User entered manually
-    EMAIL   // Parsed from email (future)
+    SMS,      // Automatically parsed from incoming SMS (realtime)
+    SMS_SCAN, // Parsed from historical SMS scan
+    MANUAL,   // User entered manually
+    EMAIL     // Parsed from email (future)
 }
 
 /**

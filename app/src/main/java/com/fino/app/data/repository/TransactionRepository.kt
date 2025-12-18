@@ -77,6 +77,10 @@ class TransactionRepository @Inject constructor(
         return dao.getByReference(reference)?.toDomain()
     }
 
+    suspend fun existsByRawSmsBody(rawSmsBody: String): Boolean {
+        return dao.existsByRawSmsBody(rawSmsBody)
+    }
+
     private fun TransactionEntity.toDomain(): Transaction {
         return Transaction(
             id = id,

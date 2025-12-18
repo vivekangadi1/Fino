@@ -27,6 +27,7 @@ import com.fino.app.domain.model.TransactionType
 import com.fino.app.presentation.components.*
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.HomeViewModel
+import com.fino.app.presentation.viewmodel.SmsScanViewModel
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,10 +37,64 @@ fun HomeScreen(
     onNavigateToAnalytics: () -> Unit,
     onNavigateToRewards: () -> Unit,
     onAddTransaction: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    smsScanViewModel: SmsScanViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val smsScanState by smsScanViewModel.uiState.collectAsState()
     var currentRoute by remember { mutableStateOf("home") }
+    var showScanResultDialog by remember { mutableStateOf(false) }
+
+    // Show dialog when scan completes
+    LaunchedEffect(smsScanState.lastResult) {
+        if (smsScanState.lastResult != null && !smsScanState.isScanning) {
+            showScanResultDialog = true
+        }
+    }
+
+    // Scan result dialog
+    if (showScanResultDialog && smsScanState.lastResult != null) {
+        AlertDialog(
+            onDismissRequest = { showScanResultDialog = false },
+            title = { Text("SMS Scan Complete") },
+            text = {
+                val result = smsScanState.lastResult!!
+                Column {
+                    Text("Scanned ${result.totalSmsScanned} SMS messages")
+                    Text("Found ${result.transactionsFound} transactions")
+                    Text("Saved ${result.transactionsSaved} new transactions")
+                    if (result.duplicatesSkipped > 0) {
+                        Text("Skipped ${result.duplicatesSkipped} duplicates")
+                    }
+                    if (result.errors > 0) {
+                        Text("${result.errors} errors occurred", color = ExpenseRed)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showScanResultDialog = false
+                    viewModel.refresh() // Refresh home data
+                }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    // Error dialog
+    if (smsScanState.error != null) {
+        AlertDialog(
+            onDismissRequest = { smsScanViewModel.clearError() },
+            title = { Text("Scan Error") },
+            text = { Text(smsScanState.error!!) },
+            confirmButton = {
+                TextButton(onClick = { smsScanViewModel.clearError() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = DarkBackground,
@@ -90,7 +145,9 @@ fun HomeScreen(
             item {
                 QuickActionsRow(
                     onAddTransaction = onAddTransaction,
-                    onNavigateToAnalytics = onNavigateToAnalytics
+                    onNavigateToAnalytics = onNavigateToAnalytics,
+                    onScanSms = { smsScanViewModel.scanCurrentMonth() },
+                    isScanning = smsScanState.isScanning
                 )
             }
 
@@ -98,7 +155,8 @@ fun HomeScreen(
             item {
                 ModernStatsSection(
                     monthlySpent = uiState.monthlySpent,
-                    monthlyIncome = uiState.monthlyIncome
+                    monthlyIncome = uiState.monthlyIncome,
+                    monthlySaved = uiState.monthlySaved
                 )
             }
 
@@ -235,7 +293,9 @@ private fun getGreeting(): String {
 @Composable
 private fun QuickActionsRow(
     onAddTransaction: () -> Unit,
-    onNavigateToAnalytics: () -> Unit
+    onNavigateToAnalytics: () -> Unit,
+    onScanSms: () -> Unit,
+    isScanning: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -250,10 +310,11 @@ private fun QuickActionsRow(
             modifier = Modifier.weight(1f)
         )
         QuickActionPill(
-            icon = Icons.Outlined.QrCodeScanner,
-            label = "Scan",
-            onClick = { },
-            modifier = Modifier.weight(1f)
+            icon = if (isScanning) Icons.Outlined.Sync else Icons.Outlined.Sms,
+            label = if (isScanning) "Scanning..." else "Scan SMS",
+            onClick = { if (!isScanning) onScanSms() },
+            modifier = Modifier.weight(1f),
+            isLoading = isScanning
         )
         QuickActionPill(
             icon = Icons.Outlined.Analytics,
@@ -275,22 +336,31 @@ private fun QuickActionPill(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(DarkSurfaceVariant)
-            .clickable(onClick = onClick)
+            .clickable(enabled = !isLoading, onClick = onClick)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = Primary,
-            modifier = Modifier.size(24.dp)
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = Primary,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = Primary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
@@ -300,10 +370,16 @@ private fun QuickActionPill(
     }
 }
 
+// Savings gradient
+private val SavingsGradient = Brush.linearGradient(
+    colors = listOf(Color(0xFF4A90D9), Color(0xFF357ABD))
+)
+
 @Composable
 private fun ModernStatsSection(
     monthlySpent: Double,
-    monthlyIncome: Double
+    monthlyIncome: Double,
+    monthlySaved: Double
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -317,75 +393,75 @@ private fun ModernStatsSection(
         Spacer(modifier = Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Expense Card
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FinoGradients.Expense)
-                    .padding(16.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.TrendingDown,
-                            contentDescription = null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Spent",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextPrimary.copy(alpha = 0.8f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AnimatedCounter(
-                        targetValue = monthlySpent.toInt(),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = TextPrimary,
-                        prefix = "₹",
-                        formatAsRupees = true
-                    )
-                }
-            }
+            StatCard(
+                icon = Icons.Default.TrendingDown,
+                label = "Spent",
+                amount = monthlySpent,
+                gradient = FinoGradients.Expense,
+                modifier = Modifier.weight(1f)
+            )
 
             // Income Card
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FinoGradients.Income)
-                    .padding(16.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.TrendingUp,
-                            contentDescription = null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Income",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextPrimary.copy(alpha = 0.8f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AnimatedCounter(
-                        targetValue = monthlyIncome.toInt(),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = TextPrimary,
-                        prefix = "₹",
-                        formatAsRupees = true
-                    )
-                }
+            StatCard(
+                icon = Icons.Default.TrendingUp,
+                label = "Income",
+                amount = monthlyIncome,
+                gradient = FinoGradients.Income,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Saved Card
+            StatCard(
+                icon = Icons.Outlined.Savings,
+                label = "Saved",
+                amount = monthlySaved,
+                gradient = SavingsGradient,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatCard(
+    icon: ImageVector,
+    label: String,
+    amount: Double,
+    gradient: Brush,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(gradient)
+            .padding(12.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextPrimary.copy(alpha = 0.8f)
+                )
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            AnimatedCounter(
+                targetValue = amount.toInt(),
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                prefix = "₹",
+                formatAsRupees = true
+            )
         }
     }
 }
@@ -455,9 +531,33 @@ private fun ModernTransactionsSection(
     }
 }
 
+// Blue color for Savings
+private val SavingsBlue = Color(0xFF4A90D9)
+
 @Composable
 private fun TransactionRow(transaction: Transaction) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm") }
+
+    val (bgColor, iconColor, icon, prefix) = when (transaction.type) {
+        TransactionType.DEBIT -> Quad(
+            ExpenseRed.copy(alpha = 0.2f),
+            ExpenseRed,
+            Icons.Default.TrendingDown,
+            "-"
+        )
+        TransactionType.CREDIT -> Quad(
+            IncomeGreen.copy(alpha = 0.2f),
+            IncomeGreen,
+            Icons.Default.TrendingUp,
+            "+"
+        )
+        TransactionType.SAVINGS -> Quad(
+            SavingsBlue.copy(alpha = 0.2f),
+            SavingsBlue,
+            Icons.Outlined.Savings,
+            ""
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -474,21 +574,13 @@ private fun TransactionRow(transaction: Transaction) {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (transaction.type == TransactionType.DEBIT)
-                            ExpenseRed.copy(alpha = 0.2f)
-                        else
-                            IncomeGreen.copy(alpha = 0.2f)
-                    ),
+                    .background(bgColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (transaction.type == TransactionType.DEBIT)
-                        Icons.Default.TrendingDown
-                    else
-                        Icons.Default.TrendingUp,
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = if (transaction.type == TransactionType.DEBIT) ExpenseRed else IncomeGreen,
+                    tint = iconColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -510,14 +602,17 @@ private fun TransactionRow(transaction: Transaction) {
             }
 
             Text(
-                text = "${if (transaction.type == TransactionType.DEBIT) "-" else "+"}₹${String.format("%,.0f", transaction.amount)}",
+                text = "$prefix₹${String.format("%,.0f", transaction.amount)}",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = if (transaction.type == TransactionType.DEBIT) ExpenseRed else IncomeGreen
+                color = iconColor
             )
         }
     }
 }
+
+// Helper data class for destructuring
+private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
 private fun ModernBudgetCard() {

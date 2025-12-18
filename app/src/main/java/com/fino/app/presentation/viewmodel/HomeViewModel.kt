@@ -24,6 +24,7 @@ data class HomeUiState(
     val totalBalance: Double = 0.0,
     val monthlySpent: Double = 0.0,
     val monthlyIncome: Double = 0.0,
+    val monthlySaved: Double = 0.0,
     val recentTransactions: List<Transaction> = emptyList(),
     val currentStreak: Int = 0,
     val currentLevel: Int = 1,
@@ -72,12 +73,20 @@ class HomeViewModel @Inject constructor(
                     .filter { it.type == TransactionType.DEBIT }
                     .sumOf { it.amount }
 
+                val totalSavings = transactions
+                    .filter { it.type == TransactionType.SAVINGS }
+                    .sumOf { it.amount }
+
                 val monthlyIncome = monthlyTransactions
                     .filter { it.type == TransactionType.CREDIT }
                     .sumOf { it.amount }
 
                 val monthlySpent = monthlyTransactions
                     .filter { it.type == TransactionType.DEBIT }
+                    .sumOf { it.amount }
+
+                val monthlySaved = monthlyTransactions
+                    .filter { it.type == TransactionType.SAVINGS }
                     .sumOf { it.amount }
 
                 // Get recent transactions (top 5, sorted by date descending)
@@ -94,9 +103,10 @@ class HomeViewModel @Inject constructor(
 
                 _uiState.update {
                     it.copy(
-                        totalBalance = totalIncome - totalExpenses,
+                        totalBalance = totalIncome - totalExpenses - totalSavings,
                         monthlySpent = monthlySpent,
                         monthlyIncome = monthlyIncome,
+                        monthlySaved = monthlySaved,
                         recentTransactions = recentTransactions,
                         currentStreak = currentStreak,
                         currentLevel = currentLevel,

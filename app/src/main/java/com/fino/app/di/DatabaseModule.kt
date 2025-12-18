@@ -98,7 +98,10 @@ object DatabaseModule {
         db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (9, 'Groceries', '🛒', NULL, 1, NULL, 9, 1)")
         db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (10, 'Personal', '💅', NULL, 1, NULL, 10, 1)")
         db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (11, 'Salary', '💰', NULL, 1, NULL, 11, 1)")
-        db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (12, 'Other', '📦', NULL, 1, NULL, 12, 1)")
+        db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (12, 'Pet', '🐾', NULL, 1, NULL, 12, 1)")
+        db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (13, 'Insurance', '🛡️', NULL, 1, NULL, 13, 1)")
+        db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (14, 'Investments', '📈', NULL, 1, NULL, 14, 1)")
+        db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (15, 'Other', '📦', NULL, 1, NULL, 15, 1)")
     }
 
     private fun seedUserStats(db: SupportSQLiteDatabase) {

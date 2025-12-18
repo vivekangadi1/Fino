@@ -63,4 +63,7 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE reference = :reference LIMIT 1")
     suspend fun getByReference(reference: String): TransactionEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE rawSmsBody = :rawSmsBody LIMIT 1)")
+    suspend fun existsByRawSmsBody(rawSmsBody: String): Boolean
 }

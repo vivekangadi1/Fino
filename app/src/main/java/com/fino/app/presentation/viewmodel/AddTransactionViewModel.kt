@@ -29,7 +29,7 @@ data class AddTransactionUiState(
     val amount: String = "",
     val merchant: String = "",
     val selectedCategoryId: Long? = null,
-    val isExpense: Boolean = true,
+    val transactionType: TransactionType = TransactionType.DEBIT,
     val categories: List<Category> = emptyList(),
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
@@ -72,8 +72,8 @@ class AddTransactionViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCategoryId = categoryId) }
     }
 
-    fun setIsExpense(isExpense: Boolean) {
-        _uiState.update { it.copy(isExpense = isExpense) }
+    fun setTransactionType(type: TransactionType) {
+        _uiState.update { it.copy(transactionType = type) }
     }
 
     fun saveTransaction() {
@@ -103,7 +103,7 @@ class AddTransactionViewModel @Inject constructor(
                 // Create transaction
                 val transaction = Transaction(
                     amount = amount,
-                    type = if (state.isExpense) TransactionType.DEBIT else TransactionType.CREDIT,
+                    type = state.transactionType,
                     merchantName = state.merchant.ifBlank { "Manual Entry" },
                     categoryId = state.selectedCategoryId,
                     transactionDate = LocalDateTime.now(),

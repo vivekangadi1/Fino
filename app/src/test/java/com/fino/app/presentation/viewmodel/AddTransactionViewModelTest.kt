@@ -78,7 +78,7 @@ class AddTransactionViewModelTest {
         assertEquals("", state.amount)
         assertEquals("", state.merchant)
         assertNull(state.selectedCategoryId)
-        assertTrue(state.isExpense)
+        assertEquals(TransactionType.DEBIT, state.transactionType)
         assertFalse(state.isSaving)
         assertFalse(state.saveSuccess)
         assertNull(state.error)
@@ -125,14 +125,14 @@ class AddTransactionViewModelTest {
         assertEquals(2L, state.selectedCategoryId)
     }
 
-    // Test 6: setIsExpense updates state
+    // Test 6: setTransactionType updates state
     @Test
-    fun `setIsExpense updates isExpense in state`() = runTest {
-        viewModel.setIsExpense(false)
+    fun `setTransactionType updates transactionType in state`() = runTest {
+        viewModel.setTransactionType(TransactionType.CREDIT)
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.first()
-        assertFalse(state.isExpense)
+        assertEquals(TransactionType.CREDIT, state.transactionType)
     }
 
     // Test 7: saveTransaction fails when amount is empty
@@ -165,14 +165,14 @@ class AddTransactionViewModelTest {
 
     // Test 9: saveTransaction creates DEBIT transaction for expense
     @Test
-    fun `saveTransaction creates DEBIT transaction when isExpense is true`() = runTest {
+    fun `saveTransaction creates DEBIT transaction when transactionType is DEBIT`() = runTest {
         whenever(mockTransactionRepository.insert(any())).thenReturn(1L)
         whenever(mockStreakTracker.recordActivity(any())).thenReturn(1)
 
         viewModel.setAmount("200")
         viewModel.setMerchant("Amazon")
         viewModel.selectCategory(3L)
-        viewModel.setIsExpense(true)
+        viewModel.setTransactionType(TransactionType.DEBIT)
         viewModel.saveTransaction()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -186,20 +186,39 @@ class AddTransactionViewModelTest {
 
     // Test 10: saveTransaction creates CREDIT transaction for income
     @Test
-    fun `saveTransaction creates CREDIT transaction when isExpense is false`() = runTest {
+    fun `saveTransaction creates CREDIT transaction when transactionType is CREDIT`() = runTest {
         whenever(mockTransactionRepository.insert(any())).thenReturn(1L)
         whenever(mockStreakTracker.recordActivity(any())).thenReturn(1)
 
         viewModel.setAmount("50000")
         viewModel.setMerchant("Salary")
         viewModel.selectCategory(1L)
-        viewModel.setIsExpense(false)
+        viewModel.setTransactionType(TransactionType.CREDIT)
         viewModel.saveTransaction()
         testDispatcher.scheduler.advanceUntilIdle()
 
         verify(mockTransactionRepository).insert(argThat { transaction ->
             transaction.type == TransactionType.CREDIT &&
             transaction.amount == 50000.0
+        })
+    }
+
+    // Test 10b: saveTransaction creates SAVINGS transaction
+    @Test
+    fun `saveTransaction creates SAVINGS transaction when transactionType is SAVINGS`() = runTest {
+        whenever(mockTransactionRepository.insert(any())).thenReturn(1L)
+        whenever(mockStreakTracker.recordActivity(any())).thenReturn(1)
+
+        viewModel.setAmount("10000")
+        viewModel.setMerchant("SIP Investment")
+        viewModel.selectCategory(1L)
+        viewModel.setTransactionType(TransactionType.SAVINGS)
+        viewModel.saveTransaction()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        verify(mockTransactionRepository).insert(argThat { transaction ->
+            transaction.type == TransactionType.SAVINGS &&
+            transaction.amount == 10000.0
         })
     }
 

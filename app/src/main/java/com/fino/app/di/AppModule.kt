@@ -5,6 +5,10 @@ import com.fino.app.gamification.LevelCalculator
 import com.fino.app.gamification.XpCalculator
 import com.fino.app.ml.matcher.FuzzyMatcher
 import com.fino.app.service.parser.ParserFactory
+import com.fino.app.service.parser.SmsParser
+import com.fino.app.service.sms.AndroidSmsReader
+import com.fino.app.service.sms.SmsReader
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,4 +43,19 @@ object AppModule {
     fun provideXpCalculator(): XpCalculator {
         return XpCalculator()
     }
+
+    @Provides
+    @Singleton
+    fun provideSmsParser(): SmsParser {
+        return SmsParser()
+    }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class SmsModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindSmsReader(impl: AndroidSmsReader): SmsReader
 }

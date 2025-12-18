@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fino.app.domain.model.TransactionType
 import com.fino.app.presentation.components.*
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.AddTransactionViewModel
@@ -59,15 +60,15 @@ fun AddTransactionScreen(
             // Header
             TransactionHeader(
                 onClose = onNavigateBack,
-                isExpense = uiState.isExpense,
-                onToggleType = { viewModel.setIsExpense(it) }
+                transactionType = uiState.transactionType,
+                onTypeChange = { viewModel.setTransactionType(it) }
             )
 
             // Amount Section
             AmountSection(
                 amount = uiState.amount,
                 onAmountChange = { viewModel.setAmount(it) },
-                isExpense = uiState.isExpense
+                transactionType = uiState.transactionType
             )
 
             // Merchant Input
@@ -109,11 +110,14 @@ fun AddTransactionScreen(
     }
 }
 
+// Color for Savings type
+private val SavingsBlue = Color(0xFF4A90D9)
+
 @Composable
 private fun TransactionHeader(
     onClose: () -> Unit,
-    isExpense: Boolean,
-    onToggleType: (Boolean) -> Unit
+    transactionType: TransactionType,
+    onTypeChange: (TransactionType) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -125,69 +129,101 @@ private fun TransactionHeader(
             )
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Close Button
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(DarkSurfaceVariant)
-                    .clickable(onClick = onClose),
-                contentAlignment = Alignment.Center
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = TextPrimary
+                // Close Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(DarkSurfaceVariant)
+                        .clickable(onClick = onClose),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = TextPrimary
+                    )
+                }
+
+                Text(
+                    text = "Add Transaction",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
                 )
+
+                // Spacer for balance
+                Spacer(modifier = Modifier.size(40.dp))
             }
 
-            // Type Toggle
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Type Toggle - 3 options
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(DarkSurfaceVariant)
-                    .padding(4.dp)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 // Expense
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isExpense) ExpenseRed else Color.Transparent)
-                        .clickable { onToggleType(true) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Expense",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isExpense) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isExpense) TextPrimary else TextSecondary
-                    )
-                }
+                TypeToggleButton(
+                    text = "Expense",
+                    isSelected = transactionType == TransactionType.DEBIT,
+                    selectedColor = ExpenseRed,
+                    onClick = { onTypeChange(TransactionType.DEBIT) },
+                    modifier = Modifier.weight(1f)
+                )
                 // Income
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (!isExpense) IncomeGreen else Color.Transparent)
-                        .clickable { onToggleType(false) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Income",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (!isExpense) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (!isExpense) TextPrimary else TextSecondary
-                    )
-                }
+                TypeToggleButton(
+                    text = "Income",
+                    isSelected = transactionType == TransactionType.CREDIT,
+                    selectedColor = IncomeGreen,
+                    onClick = { onTypeChange(TransactionType.CREDIT) },
+                    modifier = Modifier.weight(1f)
+                )
+                // Savings
+                TypeToggleButton(
+                    text = "Savings",
+                    isSelected = transactionType == TransactionType.SAVINGS,
+                    selectedColor = SavingsBlue,
+                    onClick = { onTypeChange(TransactionType.SAVINGS) },
+                    modifier = Modifier.weight(1f)
+                )
             }
-
-            // Spacer for balance
-            Spacer(modifier = Modifier.size(40.dp))
         }
+    }
+}
+
+@Composable
+private fun TypeToggleButton(
+    text: String,
+    isSelected: Boolean,
+    selectedColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) selectedColor else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) TextPrimary else TextSecondary
+        )
     }
 }
 
@@ -195,8 +231,20 @@ private fun TransactionHeader(
 private fun AmountSection(
     amount: String,
     onAmountChange: (String) -> Unit,
-    isExpense: Boolean
+    transactionType: TransactionType
 ) {
+    val questionText = when (transactionType) {
+        TransactionType.DEBIT -> "How much did you spend?"
+        TransactionType.CREDIT -> "How much did you earn?"
+        TransactionType.SAVINGS -> "How much did you save?"
+    }
+
+    val accentColor = when (transactionType) {
+        TransactionType.DEBIT -> ExpenseRed
+        TransactionType.CREDIT -> IncomeGreen
+        TransactionType.SAVINGS -> SavingsBlue
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -207,7 +255,7 @@ private fun AmountSection(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (isExpense) "How much did you spend?" else "How much did you earn?",
+                text = questionText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -221,7 +269,7 @@ private fun AmountSection(
                     text = "₹",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isExpense) ExpenseRed else IncomeGreen
+                    color = accentColor
                 )
                 BasicTextField(
                     value = amount,

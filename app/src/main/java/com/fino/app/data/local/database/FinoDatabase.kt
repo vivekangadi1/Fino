@@ -17,7 +17,7 @@ import com.fino.app.data.local.entity.*
         UserStatsEntity::class,
         AchievementEntity::class
     ],
-    version = 4,  // Bumped to 4: fixed achievement schema in seeding
+    version = 5,  // Bumped to 5: added Pet, Insurance, Investments categories
     exportSchema = false
 )
 @TypeConverters(Converters::class)
