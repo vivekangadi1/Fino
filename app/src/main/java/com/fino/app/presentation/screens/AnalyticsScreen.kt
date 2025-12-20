@@ -1,5 +1,6 @@
 package com.fino.app.presentation.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,16 +18,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fino.app.domain.model.ExportFormat
+import com.fino.app.domain.model.ExportResult
 import com.fino.app.presentation.components.*
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.AnalyticsPeriod
 import com.fino.app.presentation.viewmodel.AnalyticsViewModel
 import com.fino.app.presentation.viewmodel.CategorySpending
+import kotlinx.coroutines.launch
+import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,13 +40,47 @@ fun AnalyticsScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToCards: () -> Unit,
     onNavigateToRewards: () -> Unit,
+    onNavigateToComparison: () -> Unit = {},
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentRoute by remember { mutableStateOf("analytics") }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showPeriodPicker by remember { mutableStateOf(false) }
+
+    // Handle export and share
+    fun handleExport(format: ExportFormat) {
+        scope.launch {
+            when (val result = viewModel.exportCurrentPeriod(format)) {
+                is ExportResult.Success -> {
+                    // Share the exported file
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = if (format == ExportFormat.CSV) "text/csv" else "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, result.fileUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share ${format.name} Export"))
+
+                    snackbarHostState.showSnackbar(
+                        message = "Exported successfully: ${result.fileName}",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+                is ExportResult.Error -> {
+                    snackbarHostState.showSnackbar(
+                        message = "Export failed: ${result.error}",
+                        duration = SnackbarDuration.Long
+                    )
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = DarkBackground,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             FinoBottomNavBar(
                 currentRoute = currentRoute,
@@ -55,71 +95,143 @@ fun AnalyticsScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp)
+        // Period Picker Dialog
+        if (showPeriodPicker) {
+            PeriodPickerDialog(
+                currentSelection = YearMonth.from(uiState.selectedDate),
+                monthlySpending = uiState.spendingHeatmapData,
+                onDismiss = { showPeriodPicker = false },
+                onPeriodSelected = { yearMonth ->
+                    viewModel.updateSelectedDate(yearMonth.atDay(1))
+                }
+            )
+        }
+
+        SwipeableContent(
+            currentKey = uiState.periodLabel,
+            onSwipeLeft = {
+                if (uiState.canNavigateForward) {
+                    viewModel.navigateToNextPeriod()
+                }
+            },
+            onSwipeRight = { viewModel.navigateToPreviousPeriod() }
         ) {
-            // Header
-            item {
-                AnalyticsHeader()
-            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                // Header
+                item {
+                    AnalyticsHeader(
+                        onExportCsv = { handleExport(ExportFormat.CSV) },
+                        onExportPdf = { handleExport(ExportFormat.PDF) }
+                    )
+                }
 
-            // Period Selector
-            item {
-                PeriodSelector(
-                    selectedPeriod = uiState.selectedPeriod,
-                    onPeriodSelected = { viewModel.setPeriod(it) }
-                )
-            }
+                // Period Selector
+                item {
+                    PeriodSelector(
+                        selectedPeriod = uiState.selectedPeriod,
+                        onPeriodSelected = { viewModel.setPeriod(it) }
+                    )
+                }
 
-            // Period Navigation Header
-            item {
-                PeriodNavigationHeader(
-                    periodLabel = uiState.periodLabel,
-                    canNavigateBackward = uiState.canNavigateBackward,
-                    canNavigateForward = uiState.canNavigateForward,
-                    onNavigateBackward = { viewModel.navigateToPreviousPeriod() },
-                    onNavigateForward = { viewModel.navigateToNextPeriod() },
-                    onNavigateToCurrent = { viewModel.navigateToCurrentPeriod() },
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                )
-            }
+                // Period Navigation Header
+                item {
+                    PeriodNavigationHeader(
+                        periodLabel = uiState.periodLabel,
+                        canNavigateBackward = uiState.canNavigateBackward,
+                        canNavigateForward = uiState.canNavigateForward,
+                        onNavigateBackward = { viewModel.navigateToPreviousPeriod() },
+                        onNavigateForward = { viewModel.navigateToNextPeriod() },
+                        onNavigateToCurrent = { viewModel.navigateToCurrentPeriod() },
+                        onOpenPeriodPicker = { showPeriodPicker = true },
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                }
 
-            // Summary Cards
-            item {
-                SummaryCardsRow(
-                    totalSpent = uiState.totalSpent,
-                    transactionCount = uiState.transactionCount
-                )
-            }
+                // Period Jump Shortcuts
+                item {
+                    PeriodJumpChips(
+                        onJumpToLastMonth = { viewModel.jumpToLastMonth() },
+                        onJumpTo3MonthsAgo = { viewModel.jumpTo3MonthsAgo() },
+                        onJumpToLastYear = { viewModel.jumpToLastYear() },
+                        onJumpToSameMonthLastYear = { viewModel.jumpToSameMonthLastYear() },
+                        onCompareMonths = onNavigateToComparison
+                    )
+                }
 
-            // Chart Placeholder
-            item {
-                ChartSection(categoryBreakdown = uiState.categoryBreakdown)
-            }
+                // Summary Cards
+                item {
+                    SummaryCardsRow(
+                        totalSpent = uiState.totalSpent,
+                        transactionCount = uiState.transactionCount
+                    )
+                }
 
-            // Category Breakdown
-            item {
-                CategoryBreakdownSection(categoryBreakdown = uiState.categoryBreakdown)
-            }
+                // Trend Chart
+                uiState.spendingTrend?.let { trend ->
+                    item {
+                        TrendLineChart(
+                            trendData = trend,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    }
+                }
 
-            // Payment Method Breakdown
-            item {
-                PaymentMethodSection(paymentMethodBreakdown = uiState.paymentMethodBreakdown)
-            }
+                // Year-over-Year Chart
+                uiState.yearOverYearComparison?.let { yoyComparison ->
+                    item {
+                        YoYChart(
+                            yoyComparison = yoyComparison,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    }
+                }
 
-            // Insights
-            item {
-                InsightsSection()
+                // Payment Method Trend Chart
+                uiState.paymentMethodTrend?.let { paymentMethodTrend ->
+                    item {
+                        PaymentMethodTrendChart(
+                            paymentMethodTrend = paymentMethodTrend,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                // Chart Placeholder
+                item {
+                    ChartSection(categoryBreakdown = uiState.categoryBreakdown)
+                }
+
+                // Category Breakdown
+                item {
+                    CategoryBreakdownSection(categoryBreakdown = uiState.categoryBreakdown)
+                }
+
+                // Payment Method Breakdown
+                item {
+                    PaymentMethodSection(paymentMethodBreakdown = uiState.paymentMethodBreakdown)
+                }
+
+                // Insights
+                item {
+                    InsightsSection()
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AnalyticsHeader() {
+private fun AnalyticsHeader(
+    onExportCsv: () -> Unit = {},
+    onExportPdf: () -> Unit = {}
+) {
+    var showExportMenu by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,18 +242,83 @@ private fun AnalyticsHeader() {
             )
             .padding(20.dp)
     ) {
-        Column {
-            Text(
-                text = "Analytics",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Understand your spending habits",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Analytics",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Understand your spending habits",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
+
+            // Export button with dropdown menu
+            Box {
+                IconButton(
+                    onClick = { showExportMenu = true },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(DarkSurfaceVariant)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = "Export",
+                        tint = TextPrimary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showExportMenu,
+                    onDismissRequest = { showExportMenu = false },
+                    modifier = Modifier.background(DarkSurfaceVariant)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Outlined.Description,
+                                    contentDescription = null,
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Export as CSV", color = TextPrimary)
+                            }
+                        },
+                        onClick = {
+                            showExportMenu = false
+                            onExportCsv()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Outlined.PictureAsPdf,
+                                    contentDescription = null,
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Export as PDF", color = TextPrimary)
+                            }
+                        },
+                        onClick = {
+                            showExportMenu = false
+                            onExportPdf()
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -198,6 +375,7 @@ private fun PeriodNavigationHeader(
     onNavigateBackward: () -> Unit,
     onNavigateForward: () -> Unit,
     onNavigateToCurrent: () -> Unit,
+    onOpenPeriodPicker: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     SlideInCard(delay = 50, modifier = modifier) {
@@ -226,9 +404,9 @@ private fun PeriodNavigationHeader(
                     )
                 }
 
-                // Period label (clickable to return to current)
+                // Period label (clickable to open period picker)
                 TextButton(
-                    onClick = onNavigateToCurrent,
+                    onClick = onOpenPeriodPicker,
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -245,7 +423,7 @@ private fun PeriodNavigationHeader(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
-                            contentDescription = "Jump to current period",
+                            contentDescription = "Open period picker",
                             tint = TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )

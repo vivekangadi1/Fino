@@ -32,9 +32,9 @@ enum class RecurringFrequency {
  * Budget health status
  */
 enum class BudgetStatus {
-    SAFE,       // Under 75% of budget
-    WARNING,    // 75-100% of budget
-    OVER_BUDGET // Over 100% of budget
+    UNDER_BUDGET,      // Under 75% of budget
+    APPROACHING_LIMIT, // 75-100% of budget
+    OVER_BUDGET        // Over 100% of budget
 }
 
 /**

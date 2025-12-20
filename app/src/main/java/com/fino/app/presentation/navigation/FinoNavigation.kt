@@ -15,6 +15,7 @@ sealed class Screen(val route: String) {
     object AddTransaction : Screen("add_transaction")
     object UpcomingBills : Screen("upcoming_bills")
     object AddRecurringBill : Screen("add_recurring_bill")
+    object Comparison : Screen("comparison")
 }
 
 @Composable
@@ -48,7 +49,8 @@ fun FinoNavigation() {
             AnalyticsScreen(
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
-                onNavigateToRewards = { navController.navigate(Screen.Rewards.route) }
+                onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
+                onNavigateToComparison = { navController.navigate(Screen.Comparison.route) }
             )
         }
 
@@ -75,6 +77,12 @@ fun FinoNavigation() {
 
         composable(Screen.AddRecurringBill.route) {
             AddRecurringBillScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Comparison.route) {
+            ComparisonScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

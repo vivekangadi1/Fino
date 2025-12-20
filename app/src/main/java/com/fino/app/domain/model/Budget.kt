@@ -28,11 +28,11 @@ data class Budget(
  * Calculated budget progress for display.
  */
 data class BudgetProgress(
-    val categoryId: Long,
+    val budget: Budget,
     val categoryName: String,
-    val limit: Double,
     val spent: Double,
-    val progressPercent: Float,
+    val remaining: Double,
+    val percentage: Float,
     val status: BudgetStatus
 )
 
