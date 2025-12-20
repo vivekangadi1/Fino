@@ -116,12 +116,8 @@ class AnalyticsViewModel @Inject constructor(
 
     init {
         loadData()
-        viewModelScope.launch {
-            loadTrendData()
-            loadYearOverYearData()
-            loadPaymentMethodTrend()
-            loadSpendingHeatmapData()
-        }
+        // Load heavy analytics data lazily on demand rather than all at once
+        // to prevent blocking the UI thread on startup
     }
 
     private fun loadData() {

@@ -50,6 +50,19 @@ fun AnalyticsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showPeriodPicker by remember { mutableStateOf(false) }
 
+    // Load heavy analytics data lazily and staggered to prevent frame drops
+    LaunchedEffect(Unit) {
+        // Stagger loading to prevent all heavy operations at once
+        kotlinx.coroutines.delay(500) // Let initial UI render first
+        viewModel.loadTrendData()
+        kotlinx.coroutines.delay(300)
+        viewModel.loadYearOverYearData()
+        kotlinx.coroutines.delay(300)
+        viewModel.loadPaymentMethodTrend()
+        kotlinx.coroutines.delay(300)
+        viewModel.loadSpendingHeatmapData()
+    }
+
     // Handle export and share
     fun handleExport(format: ExportFormat) {
         scope.launch {
