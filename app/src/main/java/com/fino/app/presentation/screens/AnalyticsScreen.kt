@@ -74,6 +74,19 @@ fun AnalyticsScreen(
                 )
             }
 
+            // Period Navigation Header
+            item {
+                PeriodNavigationHeader(
+                    periodLabel = uiState.periodLabel,
+                    canNavigateBackward = uiState.canNavigateBackward,
+                    canNavigateForward = uiState.canNavigateForward,
+                    onNavigateBackward = { viewModel.navigateToPreviousPeriod() },
+                    onNavigateForward = { viewModel.navigateToNextPeriod() },
+                    onNavigateToCurrent = { viewModel.navigateToCurrentPeriod() },
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+            }
+
             // Summary Cards
             item {
                 SummaryCardsRow(
@@ -90,6 +103,11 @@ fun AnalyticsScreen(
             // Category Breakdown
             item {
                 CategoryBreakdownSection(categoryBreakdown = uiState.categoryBreakdown)
+            }
+
+            // Payment Method Breakdown
+            item {
+                PaymentMethodSection(paymentMethodBreakdown = uiState.paymentMethodBreakdown)
             }
 
             // Insights
@@ -167,6 +185,85 @@ private fun PeriodSelector(
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isSelected) TextPrimary else TextSecondary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodNavigationHeader(
+    periodLabel: String,
+    canNavigateBackward: Boolean,
+    canNavigateForward: Boolean,
+    onNavigateBackward: () -> Unit,
+    onNavigateForward: () -> Unit,
+    onNavigateToCurrent: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SlideInCard(delay = 50, modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(DarkSurfaceVariant)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Previous button
+                IconButton(
+                    onClick = onNavigateBackward,
+                    enabled = canNavigateBackward,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = "Previous period",
+                        tint = if (canNavigateBackward) TextPrimary else TextTertiary
+                    )
+                }
+
+                // Period label (clickable to return to current)
+                TextButton(
+                    onClick = onNavigateToCurrent,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = periodLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = "Jump to current period",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Next button
+                IconButton(
+                    onClick = onNavigateForward,
+                    enabled = canNavigateForward,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Next period",
+                        tint = if (canNavigateForward) TextPrimary else TextTertiary
+                    )
+                }
             }
         }
     }

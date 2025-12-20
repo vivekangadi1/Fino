@@ -100,7 +100,10 @@ class TransactionRepository @Inject constructor(
             transactionDate = DateUtils.fromEpochMillis(transactionDate),
             createdAt = DateUtils.fromEpochMillis(createdAt),
             source = source,
-            reference = reference
+            reference = reference,
+            bankName = bankName,
+            paymentMethod = paymentMethod,
+            cardLastFour = cardLastFour
         )
     }
 
@@ -123,7 +126,10 @@ class TransactionRepository @Inject constructor(
             transactionDate = DateUtils.toEpochMillis(transactionDate),
             createdAt = DateUtils.toEpochMillis(createdAt),
             source = source,
-            reference = reference
+            reference = reference,
+            bankName = bankName,
+            paymentMethod = paymentMethod,
+            cardLastFour = cardLastFour
         )
     }
 }

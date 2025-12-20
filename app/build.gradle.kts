@@ -102,9 +102,6 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // ML Kit for text recognition (fallback)
-    implementation("com.google.mlkit:text-recognition:16.0.0")
-
     // Charts for analytics (Vico)
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
 

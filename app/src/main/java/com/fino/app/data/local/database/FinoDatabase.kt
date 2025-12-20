@@ -17,7 +17,7 @@ import com.fino.app.data.local.entity.*
         UserStatsEntity::class,
         AchievementEntity::class
     ],
-    version = 5,  // Bumped to 5: added Pet, Insurance, Investments categories
+    version = 6,  // Bumped to 6: added bankName, paymentMethod, cardLastFour to transactions
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -3,9 +3,12 @@ package com.fino.app.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.TransactionRepository
+import com.fino.app.data.repository.UpcomingBillsRepository
 import com.fino.app.data.repository.UserStatsRepository
+import com.fino.app.domain.model.BillSummary
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionType
+import com.fino.app.domain.model.UpcomingBill
 import com.fino.app.gamification.LevelCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,13 +34,20 @@ data class HomeUiState(
     val levelName: String = "Budget Beginner",
     val totalXp: Int = 0,
     val xpProgress: Float = 0f,
+    val upcomingBillsSummary: BillSummary? = null,
+    val nextBills: List<UpcomingBill> = emptyList(),
     val isLoading: Boolean = true
-)
+) {
+    val hasUrgentBills: Boolean
+        get() = (upcomingBillsSummary?.overdueCount ?: 0) > 0 ||
+                (upcomingBillsSummary?.dueTodayCount ?: 0) > 0
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val userStatsRepository: UserStatsRepository,
+    private val upcomingBillsRepository: UpcomingBillsRepository,
     private val levelCalculator: LevelCalculator
 ) : ViewModel() {
 
@@ -52,10 +62,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 transactionRepository.getAllTransactionsFlow(),
-                userStatsRepository.getUserStatsFlow()
-            ) { transactions, userStats ->
-                Pair(transactions, userStats)
-            }.collect { (transactions, userStats) ->
+                userStatsRepository.getUserStatsFlow(),
+                upcomingBillsRepository.getUpcomingBillsFlow()
+            ) { transactions, userStats, bills ->
+                Triple(transactions, userStats, bills)
+            }.collect { (transactions, userStats, bills) ->
                 val currentMonth = YearMonth.now()
 
                 // Filter transactions for current month
@@ -101,6 +112,14 @@ class HomeViewModel @Inject constructor(
                 val levelName = levelCalculator.getLevelName(currentLevel)
                 val xpProgress = levelCalculator.getProgressToNextLevel(totalXp).progressPercent
 
+                // Upcoming bills (top 3, sorted by due date)
+                val nextBills = bills
+                    .sortedBy { it.dueDate }
+                    .take(3)
+
+                // Get bill summary
+                val billSummary = upcomingBillsRepository.getBillSummary()
+
                 _uiState.update {
                     it.copy(
                         totalBalance = totalIncome - totalExpenses - totalSavings,
@@ -113,6 +132,8 @@ class HomeViewModel @Inject constructor(
                         levelName = levelName,
                         totalXp = totalXp,
                         xpProgress = xpProgress,
+                        upcomingBillsSummary = billSummary,
+                        nextBills = nextBills,
                         isLoading = false
                     )
                 }

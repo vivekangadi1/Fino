@@ -24,7 +24,7 @@ class SmsScanner @Inject constructor(
         // Bank sender IDs that we care about
         private val BANK_SENDERS = listOf(
             "HDFCBK", "SBIINB", "ICICIB", "AXISBK", "KOTAKB",
-            "ILOANS", "PAYTM", "GPAY", "PHONEP", "AMAZON",
+            "SBICARD", "ILOANS", "PAYTM", "GPAY", "PHONEP", "AMAZON",
             "SWIGGY", "ZOMATO", "UBER", "OLA", "CRED",
             "AIRINDIA", "INDIGO", "SPICEJET"
         )
@@ -74,7 +74,14 @@ class SmsScanner @Inject constructor(
                         parsedConfidence = parsed.confidence,
                         needsReview = parsed.confidence < 0.8f,
                         reference = parsed.reference,
-                        isRecurring = parsed.isLikelySubscription
+                        isRecurring = parsed.isLikelySubscription,
+                        bankName = parsed.bankName,
+                        paymentMethod = when {
+                            parsed.cardLastFour != null -> "CREDIT_CARD"
+                            parsed.reference != null -> "UPI"
+                            else -> null
+                        },
+                        cardLastFour = parsed.cardLastFour
                     )
 
                     transactionRepository.insert(transaction)

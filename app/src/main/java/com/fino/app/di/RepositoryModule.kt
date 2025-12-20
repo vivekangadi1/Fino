@@ -53,4 +53,26 @@ object RepositoryModule {
     fun provideAchievementRepository(dao: AchievementDao): AchievementRepository {
         return AchievementRepository(dao)
     }
+
+    @Provides
+    @Singleton
+    fun provideRecurringRuleRepository(dao: RecurringRuleDao): RecurringRuleRepository {
+        return RecurringRuleRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpcomingBillsRepository(
+        recurringRuleRepository: RecurringRuleRepository,
+        creditCardRepository: CreditCardRepository,
+        patternDetectionService: com.fino.app.service.pattern.PatternDetectionService,
+        transactionRepository: TransactionRepository
+    ): UpcomingBillsRepository {
+        return UpcomingBillsRepository(
+            recurringRuleRepository = recurringRuleRepository,
+            creditCardRepository = creditCardRepository,
+            patternDetectionService = patternDetectionService,
+            transactionRepository = transactionRepository
+        )
+    }
 }

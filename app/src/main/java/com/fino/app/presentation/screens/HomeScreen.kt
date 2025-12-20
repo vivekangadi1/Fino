@@ -37,6 +37,8 @@ fun HomeScreen(
     onNavigateToAnalytics: () -> Unit,
     onNavigateToRewards: () -> Unit,
     onAddTransaction: () -> Unit,
+    onNavigateToUpcomingBills: () -> Unit,
+    onAddRecurringBill: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
     smsScanViewModel: SmsScanViewModel = hiltViewModel()
 ) {
@@ -157,6 +159,18 @@ fun HomeScreen(
                     monthlySpent = uiState.monthlySpent,
                     monthlyIncome = uiState.monthlyIncome,
                     monthlySaved = uiState.monthlySaved
+                )
+            }
+
+            // Upcoming Bills Section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                UpcomingBillsSection(
+                    summary = uiState.upcomingBillsSummary,
+                    nextBills = uiState.nextBills,
+                    hasUrgentBills = uiState.hasUrgentBills,
+                    onViewAll = onNavigateToUpcomingBills,
+                    onAddBill = onAddRecurringBill
                 )
             }
 

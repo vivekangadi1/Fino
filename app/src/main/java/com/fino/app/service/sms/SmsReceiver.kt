@@ -39,7 +39,7 @@ class SmsReceiver : BroadcastReceiver() {
         // Bank sender IDs that we care about
         private val BANK_SENDERS = listOf(
             "HDFCBK", "SBIINB", "ICICIB", "AXISBK", "KOTAKB",
-            "ILOANS", "PAYTM", "GPAY", "PHONEP", "AMAZON",
+            "SBICARD", "ILOANS", "PAYTM", "GPAY", "PHONEP", "AMAZON",
             "SWIGGY", "ZOMATO", "UBER", "OLA", "CRED",
             "AIRINDIA", "INDIGO", "SPICEJET"
         )
@@ -87,7 +87,14 @@ class SmsReceiver : BroadcastReceiver() {
                             parsedConfidence = parsedTransaction.confidence,
                             needsReview = parsedTransaction.confidence < 0.8f,
                             reference = parsedTransaction.reference,
-                            isRecurring = parsedTransaction.isLikelySubscription
+                            isRecurring = parsedTransaction.isLikelySubscription,
+                            bankName = parsedTransaction.bankName,
+                            paymentMethod = when {
+                                parsedTransaction.cardLastFour != null -> "CREDIT_CARD"
+                                parsedTransaction.reference != null -> "UPI"
+                                else -> null
+                            },
+                            cardLastFour = parsedTransaction.cardLastFour
                         )
 
                         val id = transactionRepository.insert(transaction)

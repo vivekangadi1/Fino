@@ -13,6 +13,8 @@ sealed class Screen(val route: String) {
     object Rewards : Screen("rewards")
     object Settings : Screen("settings")
     object AddTransaction : Screen("add_transaction")
+    object UpcomingBills : Screen("upcoming_bills")
+    object AddRecurringBill : Screen("add_recurring_bill")
 }
 
 @Composable
@@ -28,7 +30,9 @@ fun FinoNavigation() {
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
-                onAddTransaction = { navController.navigate(Screen.AddTransaction.route) }
+                onAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
+                onNavigateToUpcomingBills = { navController.navigate(Screen.UpcomingBills.route) },
+                onAddRecurringBill = { navController.navigate(Screen.AddRecurringBill.route) }
             )
         }
 
@@ -58,6 +62,19 @@ fun FinoNavigation() {
 
         composable(Screen.AddTransaction.route) {
             AddTransactionScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.UpcomingBills.route) {
+            UpcomingBillsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAddBill = { navController.navigate(Screen.AddRecurringBill.route) }
+            )
+        }
+
+        composable(Screen.AddRecurringBill.route) {
+            AddRecurringBillScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

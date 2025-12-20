@@ -23,6 +23,9 @@ import java.time.LocalDateTime
  * @property createdAt When this record was created in the database
  * @property source How this transaction was recorded
  * @property reference Transaction reference number (UPI ref, etc.)
+ * @property bankName Bank name extracted from SMS (e.g., "HDFC", "ICICI", "SBI", "AXIS")
+ * @property paymentMethod Payment method type ("UPI", "CREDIT_CARD")
+ * @property cardLastFour Last 4 digits of card number for credit card transactions
  */
 data class Transaction(
     val id: Long = 0,
@@ -42,5 +45,8 @@ data class Transaction(
     val transactionDate: LocalDateTime,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val source: TransactionSource = TransactionSource.SMS,
-    val reference: String? = null
+    val reference: String? = null,
+    val bankName: String? = null,
+    val paymentMethod: String? = null,
+    val cardLastFour: String? = null
 )
