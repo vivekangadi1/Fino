@@ -19,6 +19,72 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create event_sub_categories table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS event_sub_categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    eventId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    emoji TEXT NOT NULL DEFAULT '📦',
+                    budgetAmount REAL,
+                    sortOrder INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL,
+                    FOREIGN KEY(eventId) REFERENCES events(id) ON DELETE CASCADE
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_sub_categories_eventId ON event_sub_categories(eventId)")
+
+            // Create event_vendors table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS event_vendors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    eventId INTEGER NOT NULL,
+                    subCategoryId INTEGER,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    phone TEXT,
+                    email TEXT,
+                    quotedAmount REAL,
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    FOREIGN KEY(eventId) REFERENCES events(id) ON DELETE CASCADE,
+                    FOREIGN KEY(subCategoryId) REFERENCES event_sub_categories(id) ON DELETE SET NULL
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_vendors_eventId ON event_vendors(eventId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_vendors_subCategoryId ON event_vendors(subCategoryId)")
+
+            // Create family_members table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS family_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    relationship TEXT,
+                    isDefault INTEGER NOT NULL DEFAULT 0,
+                    sortOrder INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL
+                )
+            """)
+
+            // Add new columns to transactions table
+            db.execSQL("ALTER TABLE transactions ADD COLUMN eventSubCategoryId INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN eventVendorId INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN paidBy TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN isAdvancePayment INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN dueDate INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN expenseNotes TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE transactions ADD COLUMN paymentStatus TEXT NOT NULL DEFAULT 'PAID'")
+
+            // Create indexes for new transaction columns
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_eventSubCategoryId ON transactions(eventSubCategoryId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_eventVendorId ON transactions(eventVendorId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_paymentStatus ON transactions(paymentStatus)")
+        }
+    }
+
     private val MIGRATION_6_7 = object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Create event_types table
@@ -91,7 +157,7 @@ object DatabaseModule {
             FinoDatabase.DATABASE_NAME
         )
             .fallbackToDestructiveMigration()
-            .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -101,12 +167,14 @@ object DatabaseModule {
 
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
-                    // Ensure categories exist on every database open
+                    // Ensure all required data exists on every database open
                     // This handles cases where database exists but was never seeded
                     seedCategoriesIfEmpty(db)
                     seedUserStatsIfEmpty(db)
                     seedAchievementsIfEmpty(db)
                     seedMerchantMappingsIfEmpty(db)
+                    seedEventTypesIfEmpty(db)
+                    seedFamilyMembersIfEmpty(db)
                 }
             })
             .build()
@@ -163,6 +231,60 @@ object DatabaseModule {
         }
     }
 
+    private fun seedEventTypesIfEmpty(db: SupportSQLiteDatabase) {
+        try {
+            val cursor = db.query("SELECT COUNT(*) FROM event_types")
+            cursor.moveToFirst()
+            val count = cursor.getInt(0)
+            cursor.close()
+
+            if (count == 0) {
+                seedEventTypes(db)
+            }
+        } catch (e: Exception) {
+            Log.e("DatabaseModule", "Failed to check/seed event types", e)
+        }
+    }
+
+    private fun seedEventTypes(db: SupportSQLiteDatabase) {
+        val now = System.currentTimeMillis()
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (1, 'Trip', '✈️', 1, 1, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (2, 'Wedding', '💒', 1, 2, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (3, 'Renovation', '🏠', 1, 3, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (4, 'Party', '🎉', 1, 4, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (5, 'Festival', '🪔', 1, 5, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (6, 'Medical', '🏥', 1, 6, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (7, 'Education', '🎓', 1, 7, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (8, 'Shopping Spree', '🛍️', 1, 8, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (9, 'Other', '📌', 1, 99, 1, $now)")
+        Log.d("DatabaseModule", "Seeded default event types")
+    }
+
+    private fun seedFamilyMembersIfEmpty(db: SupportSQLiteDatabase) {
+        try {
+            val cursor = db.query("SELECT COUNT(*) FROM family_members")
+            cursor.moveToFirst()
+            val count = cursor.getInt(0)
+            cursor.close()
+
+            if (count == 0) {
+                seedFamilyMembers(db)
+            }
+        } catch (e: Exception) {
+            Log.e("DatabaseModule", "Failed to check/seed family members", e)
+        }
+    }
+
+    private fun seedFamilyMembers(db: SupportSQLiteDatabase) {
+        val now = System.currentTimeMillis()
+        // Seed default family members - "Self" is marked as default
+        db.execSQL("INSERT OR IGNORE INTO family_members (id, name, relationship, isDefault, sortOrder, createdAt) VALUES (1, 'Self', 'Self', 1, 1, $now)")
+        db.execSQL("INSERT OR IGNORE INTO family_members (id, name, relationship, isDefault, sortOrder, createdAt) VALUES (2, 'Spouse', 'Spouse', 0, 2, $now)")
+        db.execSQL("INSERT OR IGNORE INTO family_members (id, name, relationship, isDefault, sortOrder, createdAt) VALUES (3, 'Father', 'Father', 0, 3, $now)")
+        db.execSQL("INSERT OR IGNORE INTO family_members (id, name, relationship, isDefault, sortOrder, createdAt) VALUES (4, 'Mother', 'Mother', 0, 4, $now)")
+        Log.d("DatabaseModule", "Seeded default family members")
+    }
+
     private fun seedCategories(db: SupportSQLiteDatabase) {
         db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (1, 'Food', '🍔', NULL, 1, NULL, 1, 1)")
         db.execSQL("INSERT OR IGNORE INTO categories (id, name, emoji, parentId, isSystem, budgetLimit, sortOrder, isActive) VALUES (2, 'Transport', '🚗', NULL, 1, NULL, 2, 1)")
@@ -195,6 +317,96 @@ object DatabaseModule {
         db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('card_1', 'Card Collector', 'Add your first credit card', '💳', 15, 1, 'CREDIT_CARD', NULL, 0)")
         db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('txn_100', 'Century Club', 'Log 100 transactions', '💯', 100, 100, 'TRANSACTION_COUNT', NULL, 0)")
         db.execSQL("INSERT OR IGNORE INTO achievements (id, name, description, emoji, xpReward, requirement, type, unlockedAt, progress) VALUES ('streak_30', 'Month Master', 'Maintain a 30-day streak', '🏆', 200, 30, 'STREAK', NULL, 0)")
+    }
+
+    private fun seedMerchantMappings(db: SupportSQLiteDatabase) {
+        val now = System.currentTimeMillis()
+
+        db.beginTransaction()
+        try {
+            // Category 1: Food & Delivery
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SWIGGY', 'Swiggy', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('ZOMATO', 'Zomato', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('DOMINOS', 'Dominos Pizza', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('PIZZAHUT', 'Pizza Hut', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('MCDONALD', 'McDonalds', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('KFC', 'KFC', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BURGERKING', 'Burger King', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SUBWAY', 'Subway', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('STARBUCKS', 'Starbucks', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('CCD', 'Cafe Coffee Day', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('DUNKINDONUTS', 'Dunkin Donuts', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BIKANERVALA', 'Bikanervala', 1, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('HALDIRAM', 'Haldirams', 1, 1.0, 0, 0, $now, $now)")
+
+            // Category 2: Transport
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('UBER', 'Uber', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('OLA', 'Ola Cabs', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('RAPIDO', 'Rapido', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BOUNCE', 'Bounce', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('YULU', 'Yulu', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('METRO', 'Metro Card', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('IRCTC', 'IRCTC', 2, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('REDBUS', 'RedBus', 2, 1.0, 0, 0, $now, $now)")
+
+            // Category 3: Shopping
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('AMAZON', 'Amazon', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('FLIPKART', 'Flipkart', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('MYNTRA', 'Myntra', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('AJIO', 'Ajio', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('NYKAA', 'Nykaa', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('MEESHO', 'Meesho', 3, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SNAPDEAL', 'Snapdeal', 3, 1.0, 0, 0, $now, $now)")
+
+            // Category 5: Entertainment
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('NETFLIX', 'Netflix', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('AMAZONPRIME', 'Amazon Prime', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('HOTSTAR', 'Disney+ Hotstar', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SPOTIFY', 'Spotify', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('YOUTUBEPREMIUM', 'YouTube Premium', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BOOKMYSHOW', 'BookMyShow', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('PVRCINEMAS', 'PVR Cinemas', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SONYLIV', 'SonyLIV', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('ZEE', 'Zee5', 5, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('STEAM', 'Steam', 5, 1.0, 0, 0, $now, $now)")
+
+            // Category 6: Bills & Utilities
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('JIO', 'Jio', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('AIRTEL', 'Airtel', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('VI', 'Vi (Vodafone Idea)', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('VODAFONE', 'Vodafone', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BSNL', 'BSNL', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('TATASKY', 'Tata Sky', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('DISHSTV', 'Dish TV', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('ELECTRICITY', 'Electricity Bill', 6, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BROADBAND', 'Broadband', 6, 1.0, 0, 0, $now, $now)")
+
+            // Category 9: Groceries
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BIGBASKET', 'BigBasket', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('BLINKIT', 'Blinkit', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('GROFERS', 'Grofers', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('ZEPTO', 'Zepto', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('DUNZO', 'Dunzo', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('DMART', 'DMart', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('JIOMART', 'JioMart', 9, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('INSTAMART', 'Instamart', 9, 1.0, 0, 0, $now, $now)")
+
+            // Category 8: Travel
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('MAKEMYTRIP', 'MakeMyTrip', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('GOIBIBO', 'Goibibo', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('CLEARTRIP', 'Cleartrip', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('INDIGO', 'IndiGo', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('SPICEJET', 'SpiceJet', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('AIRINDIA', 'Air India', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('VISTARA', 'Vistara', 8, 1.0, 0, 0, $now, $now)")
+            db.execSQL("INSERT OR IGNORE INTO merchant_mappings (rawMerchantName, normalizedName, categoryId, confidence, matchCount, isFuzzyMatch, createdAt, lastUsedAt) VALUES ('OYO', 'OYO Rooms', 8, 1.0, 0, 0, $now, $now)")
+
+            db.setTransactionSuccessful()
+        } catch (e: Exception) {
+            Log.e("DatabaseModule", "Failed to seed merchant mappings", e)
+        } finally {
+            db.endTransaction()
+        }
     }
 
     @Provides
@@ -242,4 +454,13 @@ object DatabaseModule {
 
     @Provides
     fun provideEventTypeDao(database: FinoDatabase): EventTypeDao = database.eventTypeDao()
+
+    @Provides
+    fun provideEventSubCategoryDao(database: FinoDatabase): EventSubCategoryDao = database.eventSubCategoryDao()
+
+    @Provides
+    fun provideEventVendorDao(database: FinoDatabase): EventVendorDao = database.eventVendorDao()
+
+    @Provides
+    fun provideFamilyMemberDao(database: FinoDatabase): FamilyMemberDao = database.familyMemberDao()
 }

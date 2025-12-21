@@ -193,6 +193,9 @@ class AnalyticsViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+
+                // Update navigation buttons after data is loaded
+                updateNavigationButtons()
             }
         }
     }
@@ -480,7 +483,7 @@ class AnalyticsViewModel @Inject constructor(
                 isLoading = true
             )
         }
-        updateNavigationButtons()
+        // Navigation buttons will update after data loads
         loadData()
     }
 

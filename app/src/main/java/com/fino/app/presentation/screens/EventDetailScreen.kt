@@ -21,10 +21,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fino.app.domain.model.EventSubCategorySummary
+import com.fino.app.domain.model.EventVendorSummary
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionType
+import com.fino.app.presentation.components.EventBudgetOverview
 import com.fino.app.presentation.components.EventBudgetProgress
+import com.fino.app.presentation.components.PendingPaymentsSection
 import com.fino.app.presentation.components.SlideInCard
+import com.fino.app.presentation.components.SubCategoryCard
+import com.fino.app.presentation.components.VendorCard
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.EventDetailViewModel
 import java.text.NumberFormat
@@ -38,6 +44,13 @@ fun EventDetailScreen(
     onNavigateBack: () -> Unit,
     onEditEvent: () -> Unit,
     onAddExpense: () -> Unit,
+    onAddSubCategory: () -> Unit = {},
+    onEditSubCategory: (Long) -> Unit = {},
+    onAddVendor: () -> Unit = {},
+    onEditVendor: (Long) -> Unit = {},
+    onPaymentClick: (Long) -> Unit = {},
+    onManageFamilyMembers: () -> Unit = {},
+    onTransactionClick: (Long) -> Unit = {},
     viewModel: EventDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -121,6 +134,18 @@ fun EventDetailScreen(
 
     Scaffold(
         containerColor = DarkBackground,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddExpense,
+                containerColor = Primary,
+                contentColor = TextPrimary
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Expense"
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -170,6 +195,49 @@ fun EventDetailScreen(
                             expanded = showMoreMenu,
                             onDismissRequest = { showMoreMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Add Sub-Category", color = TextPrimary) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onAddSubCategory()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Category,
+                                        contentDescription = null,
+                                        tint = Primary
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add Vendor", color = TextPrimary) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onAddVendor()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Store,
+                                        contentDescription = null,
+                                        tint = Primary
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Family Members", color = TextPrimary) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onManageFamilyMembers()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.People,
+                                        contentDescription = null,
+                                        tint = TextSecondary
+                                    )
+                                }
+                            )
+                            HorizontalDivider(color = DarkSurfaceHigh)
                             DropdownMenuItem(
                                 text = {
                                     Text(
@@ -228,15 +296,65 @@ fun EventDetailScreen(
                         )
                     }
 
-                    // Budget progress
-                    uiState.budgetStatus?.let { budgetStatus ->
+                    // Enhanced Budget Overview (with quoted, paid, pending)
+                    if (uiState.totalBudget > 0 || uiState.totalQuoted > 0 || uiState.totalPaid > 0) {
                         item {
                             SlideInCard(delay = 100) {
-                                EventBudgetProgress(
-                                    budgetStatus = budgetStatus,
+                                EventBudgetOverview(
+                                    totalBudget = uiState.totalBudget,
+                                    totalQuoted = uiState.totalQuoted,
+                                    totalPaid = uiState.totalPaid,
+                                    totalPending = uiState.totalPending,
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                                 )
                             }
+                        }
+                    } else {
+                        // Fallback to simple budget progress
+                        uiState.budgetStatus?.let { budgetStatus ->
+                            item {
+                                SlideInCard(delay = 100) {
+                                    EventBudgetProgress(
+                                        budgetStatus = budgetStatus,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Sub-Categories Section
+                    if (uiState.subCategorySummaries.isNotEmpty()) {
+                        item {
+                            SubCategoriesSection(
+                                summaries = uiState.subCategorySummaries,
+                                onSubCategoryClick = { onEditSubCategory(it.subCategory.id) },
+                                onAddClick = onAddSubCategory
+                            )
+                        }
+                    }
+
+                    // Vendors Section
+                    if (uiState.vendorSummaries.isNotEmpty()) {
+                        item {
+                            VendorsSection(
+                                summaries = uiState.vendorSummaries,
+                                onVendorClick = { onEditVendor(it.vendor.id) },
+                                onAddClick = onAddVendor
+                            )
+                        }
+                    }
+
+                    // Pending Payments Section
+                    if (uiState.pendingPayments.isNotEmpty()) {
+                        item {
+                            PendingPaymentsSection(
+                                payments = uiState.pendingPayments,
+                                vendorNames = uiState.vendorNames,
+                                subCategoryNames = uiState.subCategoryNames,
+                                onPaymentClick = { onPaymentClick(it.id) },
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
                         }
                     }
 
@@ -294,15 +412,11 @@ fun EventDetailScreen(
                             SlideInCard(delay = 200) {
                                 TransactionRow(
                                     transaction = transaction,
+                                    onClick = { onTransactionClick(transaction.id) },
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                                 )
                             }
                         }
-                    }
-
-                    // Add expense button
-                    item {
-                        AddExpenseButton(onClick = onAddExpense)
                     }
                 }
             }
@@ -611,6 +725,7 @@ private fun TransactionsHeader(
 @Composable
 private fun TransactionRow(
     transaction: Transaction,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm") }
@@ -625,6 +740,7 @@ private fun TransactionRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(DarkSurfaceVariant)
+            .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
         Row(
@@ -654,37 +770,103 @@ private fun TransactionRow(
 }
 
 @Composable
-private fun AddExpenseButton(
-    onClick: () -> Unit,
+private fun SubCategoriesSection(
+    summaries: List<EventSubCategorySummary>,
+    onSubCategoryClick: (EventSubCategorySummary) -> Unit,
+    onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
-            .clickable { onClick() }
-            .padding(16.dp)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Outlined.Add,
-                contentDescription = "Add Expense",
-                tint = Primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Add Expense to Event",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Sub-Categories",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Primary
+                color = TextPrimary
             )
+            IconButton(
+                onClick = onAddClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Sub-Category",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        summaries.forEach { summary ->
+            SlideInCard(delay = 150) {
+                SubCategoryCard(
+                    summary = summary,
+                    onClick = { onSubCategoryClick(summary) },
+                    onEditClick = { onSubCategoryClick(summary) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun VendorsSection(
+    summaries: List<EventVendorSummary>,
+    onVendorClick: (EventVendorSummary) -> Unit,
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Vendors",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            IconButton(
+                onClick = onAddClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Vendor",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        summaries.forEach { summary ->
+            SlideInCard(delay = 150) {
+                VendorCard(
+                    summary = summary,
+                    onClick = { onVendorClick(summary) },
+                    onEditClick = { onVendorClick(summary) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

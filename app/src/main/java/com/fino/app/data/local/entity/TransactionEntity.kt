@@ -3,6 +3,7 @@ package com.fino.app.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.fino.app.domain.model.PaymentStatus
 import com.fino.app.domain.model.TransactionSource
 import com.fino.app.domain.model.TransactionType
 
@@ -20,7 +21,10 @@ import com.fino.app.domain.model.TransactionType
         Index("needsReview"),
         Index("bankName"),
         Index("paymentMethod"),
-        Index("eventId")
+        Index("eventId"),
+        Index("eventSubCategoryId"),
+        Index("eventVendorId"),
+        Index("paymentStatus")
     ]
 )
 data class TransactionEntity(
@@ -46,5 +50,14 @@ data class TransactionEntity(
     val bankName: String? = null,        // "HDFC", "ICICI", "SBI", "AXIS"
     val paymentMethod: String? = null,   // "UPI", "CREDIT_CARD"
     val cardLastFour: String? = null,    // Last 4 digits for credit cards
-    val eventId: Long? = null            // Soft FK to events table
+    val eventId: Long? = null,           // Soft FK to events table
+
+    // Event expense tracking fields
+    val eventSubCategoryId: Long? = null,   // Soft FK to event_sub_categories
+    val eventVendorId: Long? = null,        // Soft FK to event_vendors
+    val paidBy: String? = null,             // Who paid for this expense
+    val isAdvancePayment: Boolean = false,  // Whether this is an advance/partial payment
+    val dueDate: Long? = null,              // Due date for pending payments (epoch millis)
+    val expenseNotes: String? = null,       // Additional notes about the expense
+    val paymentStatus: PaymentStatus = PaymentStatus.PAID  // Payment status
 )

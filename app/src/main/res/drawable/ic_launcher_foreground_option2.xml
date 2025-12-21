@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPTION 2: Coin/Ring "F" - Finance focused -->
+<!-- F inside a coin-like double ring, premium feel -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer ring (gold accent) -->
+    <path
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"
+        android:strokeWidth="3"
+        android:strokeColor="#FFD700"
+        android:fillColor="#00000000"/>
+
+    <!-- Inner filled circle with gradient -->
+    <path
+        android:pathData="M54,54m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20"
+                android:startY="20"
+                android:endX="88"
+                android:endY="88"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF1A1A2E"/>
+                <item android:offset="1" android:color="#FF252542"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- "F" with gradient fill -->
+    <path
+        android:pathData="M40,32 L70,32 L70,40 L50,40 L50,50 L64,50 L64,58 L50,58 L50,76 L40,76 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="40"
+                android:startY="32"
+                android:endX="70"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF667EEA"/>
+                <item android:offset="0.5" android:color="#FF7C5CFF"/>
+                <item android:offset="1" android:color="#FF764BA2"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

@@ -117,6 +117,7 @@ class PatternDetectionService @Inject constructor(
      * Dismiss a pattern suggestion (don't create a rule).
      * Could be extended to track dismissed patterns to avoid re-suggesting.
      */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun dismissPattern(suggestion: PatternSuggestion) {
         // Currently a no-op, but could store dismissed patterns in the future
     }

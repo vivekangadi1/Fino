@@ -2,6 +2,7 @@ package com.fino.app.data.local.dao
 
 import androidx.room.*
 import com.fino.app.data.local.entity.TransactionEntity
+import com.fino.app.domain.model.PaymentStatus
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -39,6 +40,9 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE categoryId = :categoryId ORDER BY transactionDate DESC")
     suspend fun getByCategory(categoryId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE categoryId = :categoryId ORDER BY transactionDate DESC")
+    fun getByCategoryFlow(categoryId: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE creditCardId = :creditCardId ORDER BY transactionDate DESC")
     suspend fun getByCreditCard(creditCardId: Long): List<TransactionEntity>
@@ -81,4 +85,77 @@ interface TransactionDao {
 
     @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId")
     suspend fun getTotalSpendingForEvent(eventId: Long): Double?
+
+    // Event sub-category queries
+    @Query("SELECT * FROM transactions WHERE eventSubCategoryId = :subCategoryId ORDER BY transactionDate DESC")
+    suspend fun getByEventSubCategory(subCategoryId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE eventSubCategoryId = :subCategoryId ORDER BY transactionDate DESC")
+    fun getByEventSubCategoryFlow(subCategoryId: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventSubCategoryId = :subCategoryId")
+    suspend fun getTotalSpendingForSubCategory(subCategoryId: Long): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventSubCategoryId = :subCategoryId AND paymentStatus = 'PAID'")
+    suspend fun getPaidAmountForSubCategory(subCategoryId: Long): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventSubCategoryId = :subCategoryId AND paymentStatus != 'PAID'")
+    suspend fun getPendingAmountForSubCategory(subCategoryId: Long): Double?
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE eventSubCategoryId = :subCategoryId")
+    suspend fun getCountBySubCategory(subCategoryId: Long): Int
+
+    // Event vendor queries
+    @Query("SELECT * FROM transactions WHERE eventVendorId = :vendorId ORDER BY transactionDate DESC")
+    suspend fun getByEventVendor(vendorId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE eventVendorId = :vendorId ORDER BY transactionDate DESC")
+    fun getByEventVendorFlow(vendorId: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventVendorId = :vendorId")
+    suspend fun getTotalSpendingForVendor(vendorId: Long): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventVendorId = :vendorId AND paymentStatus = 'PAID'")
+    suspend fun getPaidAmountForVendor(vendorId: Long): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventVendorId = :vendorId AND paymentStatus != 'PAID'")
+    suspend fun getPendingAmountForVendor(vendorId: Long): Double?
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE eventVendorId = :vendorId")
+    suspend fun getCountByVendor(vendorId: Long): Int
+
+    // Payment status queries
+    @Query("SELECT * FROM transactions WHERE eventId = :eventId AND paymentStatus = :status ORDER BY transactionDate DESC")
+    suspend fun getByEventAndStatus(eventId: Long, status: PaymentStatus): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE eventId = :eventId AND paymentStatus != 'PAID' ORDER BY dueDate ASC, transactionDate DESC")
+    suspend fun getPendingPaymentsForEvent(eventId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE eventId = :eventId AND paymentStatus != 'PAID' ORDER BY dueDate ASC")
+    fun getPendingPaymentsForEventFlow(eventId: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId AND paymentStatus = 'PAID'")
+    suspend fun getPaidAmountForEvent(eventId: Long): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId AND paymentStatus != 'PAID'")
+    suspend fun getPendingAmountForEvent(eventId: Long): Double?
+
+    @Query("UPDATE transactions SET paymentStatus = :status WHERE id = :transactionId")
+    suspend fun updatePaymentStatus(transactionId: Long, status: PaymentStatus)
+
+    @Query("UPDATE transactions SET eventSubCategoryId = :subCategoryId WHERE id = :transactionId")
+    suspend fun updateEventSubCategory(transactionId: Long, subCategoryId: Long?)
+
+    @Query("UPDATE transactions SET eventVendorId = :vendorId WHERE id = :transactionId")
+    suspend fun updateEventVendor(transactionId: Long, vendorId: Long?)
+
+    // Payer queries
+    @Query("SELECT * FROM transactions WHERE paidBy = :payer ORDER BY transactionDate DESC")
+    suspend fun getByPayer(payer: String): List<TransactionEntity>
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND paidBy = :payer")
+    suspend fun getTotalSpendingByPayer(payer: String): Double?
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId AND paidBy = :payer")
+    suspend fun getEventSpendingByPayer(eventId: Long, payer: String): Double?
 }

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPTION 6: Minimal Split "F" - Ultra modern -->
+<!-- Split F design with dual gradient halves, very contemporary -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Circle background -->
+    <path
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"
+        android:fillColor="#0D0D0D"/>
+
+    <!-- Left half of F (purple gradient) -->
+    <path
+        android:pathData="M36,28 L54,28 L54,78 L44,78 L44,58 L36,58 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="36"
+                android:startY="28"
+                android:endX="54"
+                android:endY="78"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF667EEA"/>
+                <item android:offset="1" android:color="#FF764BA2"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top bar of F (teal gradient) -->
+    <path
+        android:pathData="M54,28 L72,28 L72,38 L54,38 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="28"
+                android:endX="72"
+                android:endY="38"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF00D9A5"/>
+                <item android:offset="1" android:color="#FF38EF7D"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Middle bar of F (teal gradient) -->
+    <path
+        android:pathData="M54,48 L66,48 L66,58 L54,58 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="48"
+                android:endX="66"
+                android:endY="58"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF00D9A5"/>
+                <item android:offset="1" android:color="#FF11998E"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

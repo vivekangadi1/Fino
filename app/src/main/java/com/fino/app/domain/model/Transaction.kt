@@ -1,5 +1,6 @@
 package com.fino.app.domain.model
 
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -27,6 +28,13 @@ import java.time.LocalDateTime
  * @property paymentMethod Payment method type ("UPI", "CREDIT_CARD")
  * @property cardLastFour Last 4 digits of card number for credit card transactions
  * @property eventId Foreign key to Event if this transaction is associated with an event
+ * @property eventSubCategoryId Foreign key to EventSubCategory for event expense tracking
+ * @property eventVendorId Foreign key to EventVendor for event expense tracking
+ * @property paidBy Who paid for this expense (e.g., "Self", "Father")
+ * @property isAdvancePayment Whether this is an advance/partial payment
+ * @property dueDate Due date for pending payments
+ * @property expenseNotes Additional notes about the expense
+ * @property paymentStatus Payment status (PAID, PENDING, PARTIAL, OVERDUE)
  */
 data class Transaction(
     val id: Long = 0,
@@ -50,5 +58,39 @@ data class Transaction(
     val bankName: String? = null,
     val paymentMethod: String? = null,
     val cardLastFour: String? = null,
-    val eventId: Long? = null
-)
+    val eventId: Long? = null,
+
+    // Event expense tracking fields
+    val eventSubCategoryId: Long? = null,
+    val eventVendorId: Long? = null,
+    val paidBy: String? = null,
+    val isAdvancePayment: Boolean = false,
+    val dueDate: LocalDate? = null,
+    val expenseNotes: String? = null,
+    val paymentStatus: PaymentStatus = PaymentStatus.PAID
+) {
+    /**
+     * Whether this transaction is associated with an event
+     */
+    val isEventExpense: Boolean
+        get() = eventId != null
+
+    /**
+     * Whether this transaction is fully paid
+     */
+    val isFullyPaid: Boolean
+        get() = paymentStatus == PaymentStatus.PAID
+
+    /**
+     * Whether this transaction has a pending balance
+     */
+    val hasPendingBalance: Boolean
+        get() = paymentStatus == PaymentStatus.PENDING || paymentStatus == PaymentStatus.PARTIAL
+
+    /**
+     * Whether this transaction is overdue
+     */
+    val isOverdue: Boolean
+        get() = paymentStatus == PaymentStatus.OVERDUE ||
+                (hasPendingBalance && dueDate != null && dueDate.isBefore(LocalDate.now()))
+}

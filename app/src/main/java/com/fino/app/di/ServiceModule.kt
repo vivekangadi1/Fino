@@ -3,6 +3,9 @@ package com.fino.app.di
 import com.fino.app.data.repository.RecurringRuleRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.ml.matcher.MerchantMatcher
+import com.fino.app.service.categorization.KeywordMatcher
+import com.fino.app.service.categorization.PatternAnalyzer
+import com.fino.app.service.categorization.SmartCategorizationService
 import com.fino.app.service.pattern.PatternDetectionService
 import dagger.Module
 import dagger.Provides

@@ -1,0 +1,4 @@
+Date,Merchant,Amount (INR),Type,Payment Method,Reference,Bank,Card Last 4,Source
+2024-01-15 14:30:00,Swiggy,500.00,DEBIT,UPI,UPI123456,,,SMS
+2024-01-20 10:15:00,Amazon,1200.00,DEBIT,CREDIT_CARD,,,4521,MANUAL
+2024-01-01 09:00:00,Salary,50000.00,CREDIT,,,,,MANUAL

@@ -41,7 +41,18 @@ class ComparisonViewModel @Inject constructor(
     private val monthFormatter = DateTimeFormatter.ofPattern("MMM yyyy")
 
     init {
-        loadComparisonData()
+        viewModelScope.launch {
+            try {
+                loadComparisonData()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Failed to initialize: ${e.message}"
+                    )
+                }
+            }
+        }
     }
 
     /**

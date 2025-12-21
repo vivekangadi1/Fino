@@ -77,3 +77,13 @@ enum class BudgetAlertLevel {
     WARNING,   // 75-99%
     EXCEEDED   // 100%+
 }
+
+/**
+ * Payment status for event expenses
+ */
+enum class PaymentStatus {
+    PAID,      // Fully paid
+    PENDING,   // Payment not yet made
+    PARTIAL,   // Partial payment made (advance)
+    OVERDUE    // Past due date and not fully paid
+}

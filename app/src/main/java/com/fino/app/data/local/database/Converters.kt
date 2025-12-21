@@ -3,6 +3,7 @@ package com.fino.app.data.local.database
 import androidx.room.TypeConverter
 import com.fino.app.domain.model.AchievementType
 import com.fino.app.domain.model.EventStatus
+import com.fino.app.domain.model.PaymentStatus
 import com.fino.app.domain.model.RecurringFrequency
 import com.fino.app.domain.model.TransactionSource
 import com.fino.app.domain.model.TransactionType
@@ -43,4 +44,11 @@ class Converters {
 
     @TypeConverter
     fun toEventStatus(value: String): EventStatus = EventStatus.valueOf(value)
+
+    // PaymentStatus
+    @TypeConverter
+    fun fromPaymentStatus(status: PaymentStatus): String = status.name
+
+    @TypeConverter
+    fun toPaymentStatus(value: String): PaymentStatus = PaymentStatus.valueOf(value)
 }

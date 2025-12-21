@@ -1,6 +1,106 @@
 # SMS Testing Guide for Fino App
 
-## Method 1: Using Android Studio Emulator SMS Injection
+## Method 1: Using Master SMS Test Suite (Recommended)
+
+### Quick Start
+The easiest way to send comprehensive test data is using the master orchestration script:
+
+```powershell
+.\master-sms-test-suite.ps1
+```
+
+This launches an interactive menu with the following options:
+
+### Menu Options
+
+**[1] Send Minimal Test Set**
+- 4 key periods: Dec 2025, Nov 2025, Sep 2025, Dec 2024
+- Total: ~100 transactions, Rs.62,500
+- Best for: Quick comprehensive testing across all periods
+
+**[2] Send All 2024 Data**
+- Historical data: Dec 2024 only
+- Total: ~27 transactions, Rs.16,200
+- Best for: Year-over-year comparison testing
+
+**[3] Send All 2025 Data**
+- Current year: Dec 2025, Nov 2025, Sep 2025
+- Total: ~73 transactions, Rs.46,300
+- Best for: Current year trend analysis
+
+**[4] Send Everything (Chronological)**
+- All available test data in date order
+- Total: ~100 transactions, Rs.62,500
+- Best for: Complete database population
+
+**[5] Send Specific Month**
+- Choose individual month to send
+- Best for: Targeted period testing
+
+### Features
+
+- Progress indicators for each batch
+- Real-time SMS sending with verification
+- Comprehensive summary report showing:
+  - Total transactions sent
+  - Total amount by period
+  - Payment method breakdown (UPI vs Credit Cards)
+  - Category distribution
+  - Success rate statistics
+- Automatic error handling
+- Chronological ordering for realistic data flow
+
+### Example Output
+
+```
+====================================
+Comprehensive Test Summary
+====================================
+
+Overall Statistics
+==================================
+  Total Transactions Sent: 100 / 100
+  Total Amount: Rs.62,500.00
+  Success Rate: 100.0%
+
+Period Breakdown
+==================================
+  December 2024
+    Transactions: 27/27
+    Amount: Rs.16,200.00
+  September 2025
+    Transactions: 22/22
+    Amount: Rs.13,800.00
+  November 2025
+    Transactions: 23/23
+    Amount: Rs.14,500.00
+  December 2025
+    Transactions: 28/28
+    Amount: Rs.18,000.00
+
+Payment Method Breakdown
+==================================
+  UPI Payments:
+    HDFCBK UPI: Rs.18,450.00 (35 txns, 29.5%)
+    ICICIB UPI: Rs.12,300.00 (28 txns, 19.7%)
+    SBIINB UPI: Rs.10,150.00 (24 txns, 16.2%)
+    AXISBK UPI: Rs.9,100.00 (21 txns, 14.6%)
+
+  Credit Card Payments:
+    HDFCBK CC *1234: Rs.8,200.00 (12 txns, 13.1%)
+    ICICIB CC *5678: Rs.4,300.00 (8 txns, 6.9%)
+
+Category Distribution
+==================================
+  Food Delivery: Rs.15,800.00 (28 txns, 25.3%)
+  Shopping: Rs.12,500.00 (18 txns, 20.0%)
+  Groceries: Rs.10,200.00 (15 txns, 16.3%)
+  Bills: Rs.8,900.00 (14 txns, 14.2%)
+  Transport: Rs.7,600.00 (16 txns, 12.2%)
+  Entertainment: Rs.5,500.00 (9 txns, 8.8%)
+```
+
+## Method 2: Using Android Studio Emulator SMS Injection
 
 ### Step 1: Open Extended Controls
 1. Run your emulator
@@ -241,9 +341,38 @@ SELECT id, amount, merchantName, bankName, paymentMethod, cardLastFour FROM tran
 - Reinstall (triggers fresh database creation)
 - Or: adb shell pm clear com.fino.app
 
-## Quick Test Script
+## Quick Test Scripts
 
-### PowerShell Script to Send Multiple SMS
+### Master Test Suite (Recommended)
+For comprehensive testing with all features:
+```powershell
+.\master-sms-test-suite.ps1
+```
+Features:
+- Interactive menu
+- Multiple test scenarios
+- Progress tracking
+- Comprehensive reporting
+- Error handling
+
+### Individual Period Scripts
+For testing specific months:
+```powershell
+# December 2025 (current month, 28 transactions)
+.\send-december-2025-sms.ps1
+
+# November 2025 (previous month, 23 transactions)
+.\send-november-2025-sms.ps1
+
+# September 2025 (back-to-school, 22 transactions)
+.\send-september-2025-sms.ps1
+
+# December 2024 (YoY comparison, 27 transactions)
+.\send-december-2024-sms.ps1
+```
+
+### Simple Manual Test
+For quick manual testing:
 ```powershell
 # test-sms.ps1
 $sms = @(
@@ -260,7 +389,18 @@ foreach ($s in $sms) {
 }
 ```
 
-Run: `.\test-sms.ps1`
+## Available Test Data Files
+
+The project includes the following test data scripts:
+
+| Script | Period | Transactions | Amount | Description |
+|--------|--------|-------------|--------|-------------|
+| `send-december-2025-sms.ps1` | Dec 1-20, 2025 | 28 | Rs.18,000 | Current month, mixed spending |
+| `send-november-2025-sms.ps1` | Nov 1-30, 2025 | 23 | Rs.14,500 | Previous month, moderate spending |
+| `send-september-2025-sms.ps1` | Sep 1-30, 2025 | 22 | Rs.13,800 | Back-to-school emphasis |
+| `send-december-2024-sms.ps1` | Dec 1-31, 2024 | 27 | Rs.16,200 | YoY comparison (10% lower) |
+
+All scripts follow the same format and can be run independently or via the master suite.
 
 ---
 

@@ -29,6 +29,28 @@ sealed class Screen(val route: String) {
     object AddTransactionForEvent : Screen("add_transaction_event/{eventId}") {
         fun createRoute(eventId: Long) = "add_transaction_event/$eventId"
     }
+    object EditTransaction : Screen("edit_transaction/{transactionId}") {
+        fun createRoute(transactionId: Long) = "edit_transaction/$transactionId"
+    }
+    object AddSubCategory : Screen("add_sub_category/{eventId}") {
+        fun createRoute(eventId: Long) = "add_sub_category/$eventId"
+    }
+    object EditSubCategory : Screen("edit_sub_category/{eventId}/{subCategoryId}") {
+        fun createRoute(eventId: Long, subCategoryId: Long) = "edit_sub_category/$eventId/$subCategoryId"
+    }
+    object SubCategoryDetail : Screen("sub_category_detail/{eventId}/{subCategoryId}") {
+        fun createRoute(eventId: Long, subCategoryId: Long) = "sub_category_detail/$eventId/$subCategoryId"
+    }
+    object AddVendor : Screen("add_vendor/{eventId}") {
+        fun createRoute(eventId: Long) = "add_vendor/$eventId"
+    }
+    object EditVendor : Screen("edit_vendor/{eventId}/{vendorId}") {
+        fun createRoute(eventId: Long, vendorId: Long) = "edit_vendor/$eventId/$vendorId"
+    }
+    object FamilyMembers : Screen("family_members")
+    object CategoryTransactions : Screen("category_transactions/{categoryId}/{categoryName}") {
+        fun createRoute(categoryId: Long, categoryName: String) = "category_transactions/$categoryId/${categoryName.replace("/", "_")}"
+    }
 }
 
 @Composable
@@ -65,7 +87,10 @@ fun FinoNavigation() {
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
-                onNavigateToComparison = { navController.navigate(Screen.Comparison.route) }
+                onNavigateToComparison = { navController.navigate(Screen.Comparison.route) },
+                onCategoryClick = { categoryId, categoryName ->
+                    navController.navigate(Screen.CategoryTransactions.createRoute(categoryId, categoryName))
+                }
             )
         }
 
@@ -119,7 +144,14 @@ fun FinoNavigation() {
                 eventId = eventId,
                 onNavigateBack = { navController.popBackStack() },
                 onEditEvent = { navController.navigate(Screen.EditEvent.createRoute(eventId)) },
-                onAddExpense = { navController.navigate(Screen.AddTransactionForEvent.createRoute(eventId)) }
+                onAddExpense = { navController.navigate(Screen.AddTransactionForEvent.createRoute(eventId)) },
+                onAddSubCategory = { navController.navigate(Screen.AddSubCategory.createRoute(eventId)) },
+                onEditSubCategory = { subCategoryId -> navController.navigate(Screen.SubCategoryDetail.createRoute(eventId, subCategoryId)) },
+                onAddVendor = { navController.navigate(Screen.AddVendor.createRoute(eventId)) },
+                onEditVendor = { vendorId -> navController.navigate(Screen.EditVendor.createRoute(eventId, vendorId)) },
+                onPaymentClick = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) },
+                onManageFamilyMembers = { navController.navigate(Screen.FamilyMembers.route) },
+                onTransactionClick = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) }
             )
         }
 
@@ -146,6 +178,109 @@ fun FinoNavigation() {
             // AddTransactionViewModel reads eventId from SavedStateHandle
             AddTransactionScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Edit Transaction
+        composable(
+            route = Screen.EditTransaction.route,
+            arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
+        ) {
+            // AddTransactionViewModel reads transactionId from SavedStateHandle
+            AddTransactionScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Add Sub-Category
+        composable(
+            route = Screen.AddSubCategory.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.LongType })
+        ) {
+            // AddSubCategoryViewModel reads eventId from SavedStateHandle
+            AddSubCategoryScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Edit Sub-Category
+        composable(
+            route = Screen.EditSubCategory.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.LongType },
+                navArgument("subCategoryId") { type = NavType.LongType }
+            )
+        ) {
+            // AddSubCategoryViewModel reads eventId and subCategoryId from SavedStateHandle
+            AddSubCategoryScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Sub-Category Detail (shows transactions list)
+        composable(
+            route = Screen.SubCategoryDetail.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.LongType },
+                navArgument("subCategoryId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getLong("eventId") ?: return@composable
+            val subCategoryId = backStackEntry.arguments?.getLong("subCategoryId") ?: return@composable
+            SubCategoryDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onEditSubCategory = { navController.navigate(Screen.EditSubCategory.createRoute(eventId, subCategoryId)) },
+                onAddExpense = { navController.navigate(Screen.AddTransactionForEvent.createRoute(eventId)) },
+                onTransactionClick = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) }
+            )
+        }
+
+        // Add Vendor
+        composable(
+            route = Screen.AddVendor.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.LongType })
+        ) {
+            // AddVendorViewModel reads eventId from SavedStateHandle
+            AddVendorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Edit Vendor
+        composable(
+            route = Screen.EditVendor.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.LongType },
+                navArgument("vendorId") { type = NavType.LongType }
+            )
+        ) {
+            // AddVendorViewModel reads eventId and vendorId from SavedStateHandle
+            AddVendorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Family Members Management
+        composable(Screen.FamilyMembers.route) {
+            FamilyMembersScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Category Transactions
+        composable(
+            route = Screen.CategoryTransactions.route,
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.LongType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) {
+            // CategoryTransactionsViewModel reads categoryId and categoryName from SavedStateHandle
+            CategoryTransactionsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(Screen.EditTransaction.createRoute(transactionId))
+                }
             )
         }
     }

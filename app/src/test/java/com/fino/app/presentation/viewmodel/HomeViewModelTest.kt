@@ -1,5 +1,6 @@
 package com.fino.app.presentation.viewmodel
 
+import com.fino.app.data.repository.EventRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.data.repository.UpcomingBillsRepository
 import com.fino.app.data.repository.UserStatsRepository
@@ -29,6 +30,7 @@ class HomeViewModelTest {
     private lateinit var mockTransactionRepository: TransactionRepository
     private lateinit var mockUserStatsRepository: UserStatsRepository
     private lateinit var mockUpcomingBillsRepository: UpcomingBillsRepository
+    private lateinit var mockEventRepository: EventRepository
     private lateinit var levelCalculator: LevelCalculator
     private lateinit var viewModel: HomeViewModel
 
@@ -164,11 +166,13 @@ class HomeViewModelTest {
         mockTransactionRepository = mock()
         mockUserStatsRepository = mock()
         mockUpcomingBillsRepository = mock()
+        mockEventRepository = mock()
         levelCalculator = LevelCalculator()
 
         whenever(mockTransactionRepository.getAllTransactionsFlow()).thenReturn(flowOf(testTransactions))
         whenever(mockUserStatsRepository.getUserStatsFlow()).thenReturn(flowOf(testUserStats))
         whenever(mockUpcomingBillsRepository.getUpcomingBillsFlow()).thenReturn(flowOf(testUpcomingBills))
+        whenever(mockEventRepository.getEventSummariesFlow()).thenReturn(flowOf(emptyList()))
         runBlocking {
             whenever(mockUpcomingBillsRepository.getBillSummary()).thenReturn(testBillSummary)
         }
@@ -184,6 +188,7 @@ class HomeViewModelTest {
             transactionRepository = mockTransactionRepository,
             userStatsRepository = mockUserStatsRepository,
             upcomingBillsRepository = mockUpcomingBillsRepository,
+            eventRepository = mockEventRepository,
             levelCalculator = levelCalculator
         )
     }

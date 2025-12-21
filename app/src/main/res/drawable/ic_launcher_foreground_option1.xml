@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPTION 1: Gradient "F" with modern fintech style -->
+<!-- Bold stylized F with purple-teal gradient, minimal and clean -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background circle with gradient -->
+    <path
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="14"
+                android:startY="14"
+                android:endX="94"
+                android:endY="94"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF667EEA"/>
+                <item android:offset="1" android:color="#FF764BA2"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Stylized "F" letter - bold and modern -->
+    <path
+        android:pathData="M36,30 L72,30 L72,38 L46,38 L46,50 L66,50 L66,58 L46,58 L46,78 L36,78 Z"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- Subtle accent line (teal) for fintech feel -->
+    <path
+        android:pathData="M66,50 L76,50 L76,58 L66,58 Z"
+        android:fillColor="#00D9A5"/>
+</vector>

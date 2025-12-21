@@ -23,3 +23,9 @@
 
 # Keep Compose
 -keep class androidx.compose.** { *; }
+
+# Keep PDFBox classes
+-keep class com.tom_roush.pdfbox.** { *; }
+-dontwarn com.gemalto.jp2.**
+-dontwarn org.apache.fontbox.**
+-dontwarn org.bouncycastle.**

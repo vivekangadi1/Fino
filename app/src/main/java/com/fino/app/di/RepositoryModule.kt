@@ -91,4 +91,46 @@ object RepositoryModule {
     ): EventRepository {
         return EventRepository(eventDao, transactionRepository, eventTypeRepository)
     }
+
+    @Provides
+    @Singleton
+    fun provideEventSubCategoryRepository(
+        dao: EventSubCategoryDao
+    ): EventSubCategoryRepository {
+        return EventSubCategoryRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEventVendorRepository(
+        dao: EventVendorDao
+    ): EventVendorRepository {
+        return EventVendorRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFamilyMemberRepository(
+        dao: FamilyMemberDao
+    ): FamilyMemberRepository {
+        return FamilyMemberRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEventAnalyticsRepository(
+        eventRepository: EventRepository,
+        eventTypeRepository: EventTypeRepository,
+        eventSubCategoryRepository: EventSubCategoryRepository,
+        eventVendorRepository: EventVendorRepository,
+        transactionRepository: TransactionRepository
+    ): EventAnalyticsRepository {
+        return EventAnalyticsRepository(
+            eventRepository,
+            eventTypeRepository,
+            eventSubCategoryRepository,
+            eventVendorRepository,
+            transactionRepository
+        )
+    }
 }

@@ -8,8 +8,10 @@ import android.util.Log
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionSource
+import com.fino.app.service.categorization.SmartCategorizationService
 import com.fino.app.service.notification.NotificationService
 import com.fino.app.service.parser.SmsParser
+import com.fino.app.util.MerchantNormalizer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +32,12 @@ class SmsReceiver : BroadcastReceiver() {
     @Inject
     lateinit var notificationService: NotificationService
 
-    private val smsParser = SmsParser()
+    @Inject
+    lateinit var smsParser: SmsParser
+
+    @Inject
+    lateinit var smartCategorizationService: SmartCategorizationService
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
@@ -76,16 +83,30 @@ class SmsReceiver : BroadcastReceiver() {
                 // Save to database
                 scope.launch {
                     try {
+                        // Auto-categorize using smart categorization service
+                        val normalizedMerchant = MerchantNormalizer.normalize(parsedTransaction.merchantName)
+                        val categorizationResult = smartCategorizationService.categorize(
+                            normalizedMerchantName = normalizedMerchant,
+                            amount = parsedTransaction.amount,
+                            transactionTime = parsedTransaction.transactionDate,
+                            smsBody = body
+                        )
+
+                        val categoryId = categorizationResult.categoryId
+                        val categoryConfidence = categorizationResult.confidence
+
                         val transaction = Transaction(
                             amount = parsedTransaction.amount,
                             type = parsedTransaction.type,
                             merchantName = parsedTransaction.merchantName,
+                            merchantNormalized = categorizationResult.suggestedName,
+                            categoryId = categoryId,
                             transactionDate = parsedTransaction.transactionDate,
                             source = TransactionSource.SMS,
                             rawSmsBody = body,
                             smsSender = sender,
                             parsedConfidence = parsedTransaction.confidence,
-                            needsReview = parsedTransaction.confidence < 0.8f,
+                            needsReview = categoryId == 15L || categoryConfidence < 0.85f,
                             reference = parsedTransaction.reference,
                             isRecurring = parsedTransaction.isLikelySubscription,
                             bankName = parsedTransaction.bankName,
@@ -98,7 +119,19 @@ class SmsReceiver : BroadcastReceiver() {
                         )
 
                         val id = transactionRepository.insert(transaction)
-                        Log.d(TAG, "Transaction saved with ID: $id")
+
+                        // Track categorization for analytics
+                        smartCategorizationService.trackCategorization(
+                            transactionId = id,
+                            merchantName = parsedTransaction.merchantName,
+                            result = categorizationResult
+                        )
+
+                        if (categoryId != 15L) {
+                            Log.d(TAG, "Transaction saved with ID: $id - ${smartCategorizationService.getCategorizationStats(categorizationResult)}")
+                        } else {
+                            Log.d(TAG, "Transaction saved with ID: $id (No category match, needs review)")
+                        }
 
                         // Show notification
                         notificationService.showTransactionNotification(transaction)

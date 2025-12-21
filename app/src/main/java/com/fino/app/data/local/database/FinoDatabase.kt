@@ -17,9 +17,12 @@ import com.fino.app.data.local.entity.*
         UserStatsEntity::class,
         AchievementEntity::class,
         EventEntity::class,
-        EventTypeEntity::class
+        EventTypeEntity::class,
+        EventSubCategoryEntity::class,
+        EventVendorEntity::class,
+        FamilyMemberEntity::class
     ],
-    version = 7,  // Bumped to 7: added EventEntity and EventTypeEntity
+    version = 8,  // Bumped to 8: added event expense tracking tables
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -35,6 +38,9 @@ abstract class FinoDatabase : RoomDatabase() {
     abstract fun achievementDao(): AchievementDao
     abstract fun eventDao(): EventDao
     abstract fun eventTypeDao(): EventTypeDao
+    abstract fun eventSubCategoryDao(): EventSubCategoryDao
+    abstract fun eventVendorDao(): EventVendorDao
+    abstract fun familyMemberDao(): FamilyMemberDao
 
     companion object {
         const val DATABASE_NAME = "fino_database"

@@ -41,6 +41,7 @@ fun AnalyticsScreen(
     onNavigateToCards: () -> Unit,
     onNavigateToRewards: () -> Unit,
     onNavigateToComparison: () -> Unit = {},
+    onCategoryClick: (categoryId: Long, categoryName: String) -> Unit = { _, _ -> },
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -221,7 +222,10 @@ fun AnalyticsScreen(
 
                 // Category Breakdown
                 item {
-                    CategoryBreakdownSection(categoryBreakdown = uiState.categoryBreakdown)
+                    CategoryBreakdownSection(
+                        categoryBreakdown = uiState.categoryBreakdown,
+                        onCategoryClick = onCategoryClick
+                    )
                 }
 
                 // Payment Method Breakdown
@@ -666,7 +670,10 @@ private fun ChartSection(categoryBreakdown: List<CategorySpending>) {
 }
 
 @Composable
-private fun CategoryBreakdownSection(categoryBreakdown: List<CategorySpending>) {
+private fun CategoryBreakdownSection(
+    categoryBreakdown: List<CategorySpending>,
+    onCategoryClick: (categoryId: Long, categoryName: String) -> Unit
+) {
     Column(
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
@@ -711,7 +718,10 @@ private fun CategoryBreakdownSection(categoryBreakdown: List<CategorySpending>) 
             // Show real category data
             categoryBreakdown.forEachIndexed { index, spending ->
                 SlideInCard(delay = 300 + (index * 50)) {
-                    SpendingCategoryRow(spending)
+                    SpendingCategoryRow(
+                        spending = spending,
+                        onClick = { onCategoryClick(spending.categoryId, spending.categoryName) }
+                    )
                 }
                 if (index < categoryBreakdown.lastIndex) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -781,11 +791,15 @@ private fun CategoryRow(category: CategoryItem) {
 }
 
 @Composable
-private fun SpendingCategoryRow(spending: CategorySpending) {
+private fun SpendingCategoryRow(
+    spending: CategorySpending,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
             .background(DarkSurfaceVariant)
             .padding(16.dp)
     ) {

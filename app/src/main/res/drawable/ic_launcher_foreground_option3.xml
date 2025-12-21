@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPTION 3: Growth Arrow "F" - Financial growth theme -->
+<!-- F with integrated upward arrow, symbolizing financial growth -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background rounded square -->
+    <path
+        android:pathData="M20,30 Q20,20 30,20 L78,20 Q88,20 88,30 L88,78 Q88,88 78,88 L30,88 Q20,88 20,78 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20"
+                android:startY="20"
+                android:endX="88"
+                android:endY="88"
+                android:type="linear">
+                <item android:offset="0" android:color="#FF7C5CFF"/>
+                <item android:offset="1" android:color="#FF5C4CC7"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- "F" base -->
+    <path
+        android:pathData="M34,30 L68,30 L68,38 L44,38 L44,50 L62,50 L62,58 L44,58 L44,78 L34,78 Z"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- Upward growth arrow (teal) overlapping F -->
+    <path
+        android:pathData="M68,48 L68,28 L76,28 L62,16 L48,28 L56,28 L56,48 Z"
+        android:fillColor="#00D9A5"/>
+</vector>

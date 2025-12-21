@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.EventRepository
+import com.fino.app.data.repository.EventSubCategoryRepository
 import com.fino.app.data.repository.EventTypeRepository
 import com.fino.app.domain.model.Event
 import com.fino.app.domain.model.EventStatus
+import com.fino.app.domain.model.EventSubCategory
 import com.fino.app.domain.model.EventType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +52,8 @@ data class CreateEventUiState(
 class CreateEventViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val eventRepository: EventRepository,
-    private val eventTypeRepository: EventTypeRepository
+    private val eventTypeRepository: EventTypeRepository,
+    private val eventSubCategoryRepository: EventSubCategoryRepository
 ) : ViewModel() {
 
     private val eventId: Long? = savedStateHandle.get<Long>("eventId")
@@ -283,7 +286,13 @@ class CreateEventViewModel @Inject constructor(
                         createdAt = LocalDateTime.now(),
                         updatedAt = LocalDateTime.now()
                     )
-                    eventRepository.insert(event)
+                    val newEventId = eventRepository.insert(event)
+
+                    // Create default sub-categories based on event type
+                    val eventType = state.eventTypes.find { it.id == state.selectedEventTypeId }
+                    if (eventType != null && newEventId > 0) {
+                        createDefaultSubCategories(newEventId, eventType.name)
+                    }
                 }
 
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
@@ -311,6 +320,23 @@ class CreateEventViewModel @Inject constructor(
     fun resetForm() {
         _uiState.update {
             CreateEventUiState(eventTypes = it.eventTypes, selectedEventTypeId = it.selectedEventTypeId)
+        }
+    }
+
+    /**
+     * Create default sub-categories for a new event based on its type
+     */
+    private suspend fun createDefaultSubCategories(eventId: Long, eventTypeName: String) {
+        val defaults = EventSubCategory.getDefaultsForEventType(eventTypeName)
+
+        defaults.forEachIndexed { index, (name, emoji) ->
+            val subCategory = EventSubCategory(
+                eventId = eventId,
+                name = name,
+                emoji = emoji,
+                sortOrder = index + 1
+            )
+            eventSubCategoryRepository.insert(subCategory)
         }
     }
 }
