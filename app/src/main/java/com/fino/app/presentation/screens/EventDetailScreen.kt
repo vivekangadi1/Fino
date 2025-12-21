@@ -37,6 +37,7 @@ fun EventDetailScreen(
     @Suppress("UNUSED_PARAMETER") eventId: Long, // eventId is retrieved via SavedStateHandle in ViewModel
     onNavigateBack: () -> Unit,
     onEditEvent: () -> Unit,
+    onAddExpense: () -> Unit,
     viewModel: EventDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -301,7 +302,7 @@ fun EventDetailScreen(
 
                     // Add expense button
                     item {
-                        AddExpenseButton()
+                        AddExpenseButton(onClick = onAddExpense)
                     }
                 }
             }
@@ -654,6 +655,7 @@ private fun TransactionRow(
 
 @Composable
 private fun AddExpenseButton(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -662,7 +664,7 @@ private fun AddExpenseButton(
             .padding(horizontal = 20.dp, vertical = 16.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(DarkSurfaceVariant)
-            .clickable { /* TODO: Navigate to add transaction */ }
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Row(

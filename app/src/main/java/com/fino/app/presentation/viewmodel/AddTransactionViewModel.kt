@@ -1,5 +1,6 @@
 package com.fino.app.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.CategoryRepository
@@ -31,6 +32,7 @@ data class AddTransactionUiState(
     val selectedCategoryId: Long? = null,
     val transactionType: TransactionType = TransactionType.DEBIT,
     val categories: List<Category> = emptyList(),
+    val eventId: Long? = null,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val error: String? = null
@@ -38,6 +40,7 @@ data class AddTransactionUiState(
 
 @HiltViewModel
 class AddTransactionViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val userStatsRepository: UserStatsRepository,
@@ -45,7 +48,10 @@ class AddTransactionViewModel @Inject constructor(
     private val xpCalculator: XpCalculator
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddTransactionUiState())
+    // Get eventId from navigation arguments (null if adding standalone transaction)
+    private val eventId: Long? = savedStateHandle.get<Long>("eventId")
+
+    private val _uiState = MutableStateFlow(AddTransactionUiState(eventId = eventId))
     val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
 
     init {
@@ -100,7 +106,7 @@ class AddTransactionViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // Create transaction
+                // Create transaction (with eventId if adding to an event)
                 val transaction = Transaction(
                     amount = amount,
                     type = state.transactionType,
@@ -109,7 +115,8 @@ class AddTransactionViewModel @Inject constructor(
                     transactionDate = LocalDateTime.now(),
                     source = TransactionSource.MANUAL,
                     needsReview = false,
-                    parsedConfidence = 1.0f
+                    parsedConfidence = 1.0f,
+                    eventId = eventId
                 )
 
                 // Save to database

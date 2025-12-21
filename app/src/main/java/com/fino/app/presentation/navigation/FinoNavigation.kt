@@ -26,6 +26,9 @@ sealed class Screen(val route: String) {
     object EditEvent : Screen("edit_event/{eventId}") {
         fun createRoute(eventId: Long) = "edit_event/$eventId"
     }
+    object AddTransactionForEvent : Screen("add_transaction_event/{eventId}") {
+        fun createRoute(eventId: Long) = "add_transaction_event/$eventId"
+    }
 }
 
 @Composable
@@ -115,7 +118,8 @@ fun FinoNavigation() {
             EventDetailScreen(
                 eventId = eventId,
                 onNavigateBack = { navController.popBackStack() },
-                onEditEvent = { navController.navigate(Screen.EditEvent.createRoute(eventId)) }
+                onEditEvent = { navController.navigate(Screen.EditEvent.createRoute(eventId)) },
+                onAddExpense = { navController.navigate(Screen.AddTransactionForEvent.createRoute(eventId)) }
             )
         }
 
@@ -131,6 +135,16 @@ fun FinoNavigation() {
         ) {
             // CreateEventViewModel reads eventId from SavedStateHandle for edit mode
             CreateEventScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.AddTransactionForEvent.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.LongType })
+        ) {
+            // AddTransactionViewModel reads eventId from SavedStateHandle
+            AddTransactionScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
