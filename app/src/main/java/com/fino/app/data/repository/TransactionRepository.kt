@@ -81,6 +81,26 @@ class TransactionRepository @Inject constructor(
         return dao.existsByRawSmsBody(rawSmsBody)
     }
 
+    suspend fun getTransactionsForEvent(eventId: Long): List<Transaction> {
+        return dao.getTransactionsForEvent(eventId).map { it.toDomain() }
+    }
+
+    fun getTransactionsForEventFlow(eventId: Long): Flow<List<Transaction>> {
+        return dao.getTransactionsForEventFlow(eventId).map { list -> list.map { it.toDomain() } }
+    }
+
+    suspend fun assignToEvent(transactionId: Long, eventId: Long?) {
+        dao.assignToEvent(transactionId, eventId)
+    }
+
+    suspend fun unlinkTransactionsFromEvent(eventId: Long) {
+        dao.unlinkTransactionsFromEvent(eventId)
+    }
+
+    suspend fun getTotalSpendingForEvent(eventId: Long): Double {
+        return dao.getTotalSpendingForEvent(eventId) ?: 0.0
+    }
+
     private fun TransactionEntity.toDomain(): Transaction {
         return Transaction(
             id = id,
@@ -103,7 +123,8 @@ class TransactionRepository @Inject constructor(
             reference = reference,
             bankName = bankName,
             paymentMethod = paymentMethod,
-            cardLastFour = cardLastFour
+            cardLastFour = cardLastFour,
+            eventId = eventId
         )
     }
 
@@ -129,7 +150,8 @@ class TransactionRepository @Inject constructor(
             reference = reference,
             bankName = bankName,
             paymentMethod = paymentMethod,
-            cardLastFour = cardLastFour
+            cardLastFour = cardLastFour,
+            eventId = eventId
         )
     }
 }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -39,6 +41,8 @@ fun HomeScreen(
     onAddTransaction: () -> Unit,
     onNavigateToUpcomingBills: () -> Unit,
     onAddRecurringBill: () -> Unit,
+    onNavigateToEvents: () -> Unit = {},
+    onNavigateToEventDetail: (Long) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     smsScanViewModel: SmsScanViewModel = hiltViewModel()
 ) {
@@ -148,6 +152,7 @@ fun HomeScreen(
                 QuickActionsRow(
                     onAddTransaction = onAddTransaction,
                     onNavigateToAnalytics = onNavigateToAnalytics,
+                    onNavigateToEvents = onNavigateToEvents,
                     onScanSms = { smsScanViewModel.scanCurrentMonth() },
                     isScanning = smsScanState.isScanning
                 )
@@ -160,6 +165,22 @@ fun HomeScreen(
                     monthlyIncome = uiState.monthlyIncome,
                     monthlySaved = uiState.monthlySaved
                 )
+            }
+
+            // Events Section - always visible
+            item {
+                val activeEventSummary = uiState.activeEventSummary
+                if (uiState.hasActiveEvent && activeEventSummary != null) {
+                    ActiveEventSection(
+                        eventSummary = activeEventSummary,
+                        onViewAll = onNavigateToEvents,
+                        onEventClick = { onNavigateToEventDetail(activeEventSummary.event.id) }
+                    )
+                } else {
+                    EventsEmptySection(
+                        onCreateEvent = onNavigateToEvents
+                    )
+                }
             }
 
             // Upcoming Bills Section
@@ -308,6 +329,7 @@ private fun getGreeting(): String {
 private fun QuickActionsRow(
     onAddTransaction: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToEvents: () -> Unit,
     onScanSms: () -> Unit,
     isScanning: Boolean
 ) {
@@ -337,9 +359,9 @@ private fun QuickActionsRow(
             modifier = Modifier.weight(1f)
         )
         QuickActionPill(
-            icon = Icons.Outlined.MoreHoriz,
-            label = "More",
-            onClick = { },
+            icon = Icons.Outlined.Event,
+            label = "Events",
+            onClick = onNavigateToEvents,
             modifier = Modifier.weight(1f)
         )
     }
@@ -411,7 +433,7 @@ private fun ModernStatsSection(
         ) {
             // Expense Card
             StatCard(
-                icon = Icons.Default.TrendingDown,
+                icon = Icons.AutoMirrored.Filled.TrendingDown,
                 label = "Spent",
                 amount = monthlySpent,
                 gradient = FinoGradients.Expense,
@@ -420,7 +442,7 @@ private fun ModernStatsSection(
 
             // Income Card
             StatCard(
-                icon = Icons.Default.TrendingUp,
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
                 label = "Income",
                 amount = monthlyIncome,
                 gradient = FinoGradients.Income,
@@ -556,13 +578,13 @@ private fun TransactionRow(transaction: Transaction) {
         TransactionType.DEBIT -> Quad(
             ExpenseRed.copy(alpha = 0.2f),
             ExpenseRed,
-            Icons.Default.TrendingDown,
+            Icons.AutoMirrored.Filled.TrendingDown,
             "-"
         )
         TransactionType.CREDIT -> Quad(
             IncomeGreen.copy(alpha = 0.2f),
             IncomeGreen,
-            Icons.Default.TrendingUp,
+            Icons.AutoMirrored.Filled.TrendingUp,
             "+"
         )
         TransactionType.SAVINGS -> Quad(
@@ -621,6 +643,93 @@ private fun TransactionRow(transaction: Transaction) {
                 fontWeight = FontWeight.SemiBold,
                 color = iconColor
             )
+        }
+    }
+}
+
+/**
+ * Empty state section for Events when no active events exist.
+ */
+@Composable
+private fun EventsEmptySection(
+    onCreateEvent: () -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Events",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            TextButton(onClick = onCreateEvent) {
+                Text(
+                    text = "View All",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Primary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SlideInCard(delay = 150) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(DarkSurfaceVariant)
+                    .clickable { onCreateEvent() }
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Event,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Track Event Expenses",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Create an event to track trip, wedding, or renovation expenses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Create Event",
+                        tint = TextTertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -696,6 +805,50 @@ private fun ModernBudgetCard() {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActiveEventSection(
+    eventSummary: com.fino.app.domain.model.EventSummary,
+    onViewAll: () -> Unit,
+    onEventClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Active Event",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onViewAll() }
+            ) {
+                Text(
+                    text = "All Events",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Primary
+                )
+                BouncingArrow(color = Primary)
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SlideInCard(delay = 200) {
+            MinimalActiveEventCard(
+                eventSummary = eventSummary,
+                onClick = onEventClick
+            )
         }
     }
 }

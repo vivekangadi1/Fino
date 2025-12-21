@@ -2,10 +2,12 @@ package com.fino.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fino.app.data.repository.EventRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.data.repository.UpcomingBillsRepository
 import com.fino.app.data.repository.UserStatsRepository
 import com.fino.app.domain.model.BillSummary
+import com.fino.app.domain.model.EventSummary
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionType
 import com.fino.app.domain.model.UpcomingBill
@@ -36,6 +38,8 @@ data class HomeUiState(
     val xpProgress: Float = 0f,
     val upcomingBillsSummary: BillSummary? = null,
     val nextBills: List<UpcomingBill> = emptyList(),
+    val activeEventSummary: EventSummary? = null,
+    val hasActiveEvent: Boolean = false,
     val isLoading: Boolean = true
 ) {
     val hasUrgentBills: Boolean
@@ -48,6 +52,7 @@ class HomeViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val userStatsRepository: UserStatsRepository,
     private val upcomingBillsRepository: UpcomingBillsRepository,
+    private val eventRepository: EventRepository,
     private val levelCalculator: LevelCalculator
 ) : ViewModel() {
 
@@ -60,13 +65,21 @@ class HomeViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
+            // Combine all flows
             combine(
                 transactionRepository.getAllTransactionsFlow(),
                 userStatsRepository.getUserStatsFlow(),
-                upcomingBillsRepository.getUpcomingBillsFlow()
-            ) { transactions, userStats, bills ->
-                Triple(transactions, userStats, bills)
-            }.collect { (transactions, userStats, bills) ->
+                upcomingBillsRepository.getUpcomingBillsFlow(),
+                eventRepository.getEventSummariesFlow()
+            ) { transactions: List<Transaction>, userStats, bills: List<UpcomingBill>, eventSummaries: List<EventSummary> ->
+                // Return a data class or tuple with all data
+                HomeData(transactions, userStats, bills, eventSummaries)
+            }.collect { homeData ->
+                val transactions = homeData.transactions
+                val userStats = homeData.userStats
+                val bills = homeData.bills
+                val eventSummaries = homeData.eventSummaries
+
                 val currentMonth = YearMonth.now()
 
                 // Filter transactions for current month
@@ -117,8 +130,14 @@ class HomeViewModel @Inject constructor(
                     .sortedBy { it.dueDate }
                     .take(3)
 
-                // Get bill summary
+                // Get bill summary (this is a suspend call, needs to be done separately)
                 val billSummary = upcomingBillsRepository.getBillSummary()
+
+                // Get most recent ongoing event
+                val activeEventSummary = eventSummaries
+                    .filter { it.event.isOngoing }
+                    .maxByOrNull { it.event.startDate }
+                val hasActiveEvent = activeEventSummary != null
 
                 _uiState.update {
                     it.copy(
@@ -134,6 +153,8 @@ class HomeViewModel @Inject constructor(
                         xpProgress = xpProgress,
                         upcomingBillsSummary = billSummary,
                         nextBills = nextBills,
+                        activeEventSummary = activeEventSummary,
+                        hasActiveEvent = hasActiveEvent,
                         isLoading = false
                     )
                 }
@@ -146,3 +167,11 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 }
+
+// Helper data class for combine result
+private data class HomeData(
+    val transactions: List<Transaction>,
+    val userStats: com.fino.app.domain.model.UserStats?,
+    val bills: List<UpcomingBill>,
+    val eventSummaries: List<EventSummary>
+)

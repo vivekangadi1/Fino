@@ -19,7 +19,8 @@ import com.fino.app.domain.model.TransactionType
         Index("merchantName"),
         Index("needsReview"),
         Index("bankName"),
-        Index("paymentMethod")
+        Index("paymentMethod"),
+        Index("eventId")
     ]
 )
 data class TransactionEntity(
@@ -44,5 +45,6 @@ data class TransactionEntity(
     val reference: String? = null,
     val bankName: String? = null,        // "HDFC", "ICICI", "SBI", "AXIS"
     val paymentMethod: String? = null,   // "UPI", "CREDIT_CARD"
-    val cardLastFour: String? = null     // Last 4 digits for credit cards
+    val cardLastFour: String? = null,    // Last 4 digits for credit cards
+    val eventId: Long? = null            // Soft FK to events table
 )

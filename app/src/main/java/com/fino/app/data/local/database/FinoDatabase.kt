@@ -15,9 +15,11 @@ import com.fino.app.data.local.entity.*
         RecurringRuleEntity::class,
         BudgetEntity::class,
         UserStatsEntity::class,
-        AchievementEntity::class
+        AchievementEntity::class,
+        EventEntity::class,
+        EventTypeEntity::class
     ],
-    version = 6,  // Bumped to 6: added bankName, paymentMethod, cardLastFour to transactions
+    version = 7,  // Bumped to 7: added EventEntity and EventTypeEntity
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -31,6 +33,8 @@ abstract class FinoDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun userStatsDao(): UserStatsDao
     abstract fun achievementDao(): AchievementDao
+    abstract fun eventDao(): EventDao
+    abstract fun eventTypeDao(): EventTypeDao
 
     companion object {
         const val DATABASE_NAME = "fino_database"

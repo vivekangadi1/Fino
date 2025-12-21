@@ -1,8 +1,10 @@
 package com.fino.app.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fino.app.data.local.dao.*
 import com.fino.app.data.local.database.FinoDatabase
@@ -17,6 +19,67 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create event_types table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS event_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    emoji TEXT NOT NULL,
+                    isSystem INTEGER NOT NULL DEFAULT 0,
+                    sortOrder INTEGER NOT NULL DEFAULT 0,
+                    isActive INTEGER NOT NULL DEFAULT 1,
+                    createdAt INTEGER NOT NULL
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_types_isSystem ON event_types(isSystem)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_types_isActive ON event_types(isActive)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_types_sortOrder ON event_types(sortOrder)")
+
+            // Seed system event types
+            val now = System.currentTimeMillis()
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (1, 'Trip', '✈️', 1, 1, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (2, 'Wedding', '💒', 1, 2, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (3, 'Renovation', '🏠', 1, 3, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (4, 'Party', '🎉', 1, 4, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (5, 'Festival', '🪔', 1, 5, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (6, 'Medical', '🏥', 1, 6, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (7, 'Education', '🎓', 1, 7, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (8, 'Shopping Spree', '🛍️', 1, 8, 1, $now)")
+            db.execSQL("INSERT INTO event_types (id, name, emoji, isSystem, sortOrder, isActive, createdAt) VALUES (9, 'Other', '📌', 1, 99, 1, $now)")
+
+            // Create events table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    emoji TEXT NOT NULL,
+                    eventTypeId INTEGER NOT NULL,
+                    budgetAmount REAL,
+                    alertAt75 INTEGER NOT NULL DEFAULT 1,
+                    alertAt100 INTEGER NOT NULL DEFAULT 1,
+                    startDate INTEGER NOT NULL,
+                    endDate INTEGER,
+                    status TEXT NOT NULL DEFAULT 'ACTIVE',
+                    isActive INTEGER NOT NULL DEFAULT 1,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+            """)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_events_eventTypeId ON events(eventTypeId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_events_status ON events(status)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_events_startDate ON events(startDate)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_events_endDate ON events(endDate)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_events_isActive ON events(isActive)")
+
+            // Add eventId column to transactions
+            db.execSQL("ALTER TABLE transactions ADD COLUMN eventId INTEGER DEFAULT NULL")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_eventId ON transactions(eventId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -28,6 +91,7 @@ object DatabaseModule {
             FinoDatabase.DATABASE_NAME
         )
             .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_6_7)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -42,6 +106,7 @@ object DatabaseModule {
                     seedCategoriesIfEmpty(db)
                     seedUserStatsIfEmpty(db)
                     seedAchievementsIfEmpty(db)
+                    seedMerchantMappingsIfEmpty(db)
                 }
             })
             .build()
@@ -51,6 +116,7 @@ object DatabaseModule {
         seedCategories(db)
         seedUserStats(db)
         seedAchievements(db)
+        seedMerchantMappings(db)
     }
 
     private fun seedCategoriesIfEmpty(db: SupportSQLiteDatabase) {
@@ -83,6 +149,17 @@ object DatabaseModule {
 
         if (count == 0) {
             seedAchievements(db)
+        }
+    }
+
+    private fun seedMerchantMappingsIfEmpty(db: SupportSQLiteDatabase) {
+        val cursor = db.query("SELECT COUNT(*) FROM merchant_mappings")
+        cursor.moveToFirst()
+        val count = cursor.getInt(0)
+        cursor.close()
+
+        if (count == 0) {
+            seedMerchantMappings(db)
         }
     }
 
@@ -159,4 +236,10 @@ object DatabaseModule {
     fun provideAchievementDao(database: FinoDatabase): AchievementDao {
         return database.achievementDao()
     }
+
+    @Provides
+    fun provideEventDao(database: FinoDatabase): EventDao = database.eventDao()
+
+    @Provides
+    fun provideEventTypeDao(database: FinoDatabase): EventTypeDao = database.eventTypeDao()
 }

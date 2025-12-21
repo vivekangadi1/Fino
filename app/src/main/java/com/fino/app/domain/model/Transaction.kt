@@ -26,6 +26,7 @@ import java.time.LocalDateTime
  * @property bankName Bank name extracted from SMS (e.g., "HDFC", "ICICI", "SBI", "AXIS")
  * @property paymentMethod Payment method type ("UPI", "CREDIT_CARD")
  * @property cardLastFour Last 4 digits of card number for credit card transactions
+ * @property eventId Foreign key to Event if this transaction is associated with an event
  */
 data class Transaction(
     val id: Long = 0,
@@ -48,5 +49,6 @@ data class Transaction(
     val reference: String? = null,
     val bankName: String? = null,
     val paymentMethod: String? = null,
-    val cardLastFour: String? = null
+    val cardLastFour: String? = null,
+    val eventId: Long? = null
 )

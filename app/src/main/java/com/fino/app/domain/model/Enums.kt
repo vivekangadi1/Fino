@@ -59,3 +59,21 @@ enum class MatchType {
     FUZZY,  // Similar merchant name (requires confirmation)
     NONE    // No match found
 }
+
+/**
+ * Status of an event (trip, wedding, etc.)
+ */
+enum class EventStatus {
+    ACTIVE,     // Event is ongoing
+    COMPLETED,  // Event has ended naturally
+    CANCELLED   // Event was cancelled by user
+}
+
+/**
+ * Alert level for budget status
+ */
+enum class BudgetAlertLevel {
+    NORMAL,    // Under 75%
+    WARNING,   // 75-99%
+    EXCEEDED   // 100%+
+}

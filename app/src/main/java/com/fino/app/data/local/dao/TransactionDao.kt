@@ -66,4 +66,19 @@ interface TransactionDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE rawSmsBody = :rawSmsBody LIMIT 1)")
     suspend fun existsByRawSmsBody(rawSmsBody: String): Boolean
+
+    @Query("SELECT * FROM transactions WHERE eventId = :eventId ORDER BY transactionDate DESC")
+    suspend fun getTransactionsForEvent(eventId: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE eventId = :eventId ORDER BY transactionDate DESC")
+    fun getTransactionsForEventFlow(eventId: Long): Flow<List<TransactionEntity>>
+
+    @Query("UPDATE transactions SET eventId = :eventId WHERE id = :transactionId")
+    suspend fun assignToEvent(transactionId: Long, eventId: Long?)
+
+    @Query("UPDATE transactions SET eventId = NULL WHERE eventId = :eventId")
+    suspend fun unlinkTransactionsFromEvent(eventId: Long)
+
+    @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId")
+    suspend fun getTotalSpendingForEvent(eventId: Long): Double?
 }

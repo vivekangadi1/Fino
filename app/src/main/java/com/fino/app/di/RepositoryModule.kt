@@ -75,4 +75,20 @@ object RepositoryModule {
             transactionRepository = transactionRepository
         )
     }
+
+    @Provides
+    @Singleton
+    fun provideEventTypeRepository(dao: EventTypeDao): EventTypeRepository {
+        return EventTypeRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEventRepository(
+        eventDao: EventDao,
+        transactionRepository: TransactionRepository,
+        eventTypeRepository: EventTypeRepository
+    ): EventRepository {
+        return EventRepository(eventDao, transactionRepository, eventTypeRepository)
+    }
 }
