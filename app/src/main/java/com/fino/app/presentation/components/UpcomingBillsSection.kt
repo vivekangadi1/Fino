@@ -34,6 +34,7 @@ fun UpcomingBillsSection(
     hasUrgentBills: Boolean,
     onViewAll: () -> Unit,
     onAddBill: () -> Unit,
+    onBillClick: (UpcomingBill) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -100,7 +101,10 @@ fun UpcomingBillsSection(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 nextBills.take(3).forEach { bill ->
-                    UpcomingBillCard(bill = bill)
+                    UpcomingBillCard(
+                        bill = bill,
+                        onClick = { onBillClick(bill) }
+                    )
                 }
             }
         } else {
@@ -212,6 +216,7 @@ fun UpcomingBillCard(
         BillStatus.DUE_TOMORROW -> Warning.copy(alpha = 0.8f)
         BillStatus.DUE_THIS_WEEK -> Info
         BillStatus.UPCOMING -> TextSecondary
+        BillStatus.PAID -> IncomeGreen
     }
 
     val statusText = when (bill.status) {
@@ -220,6 +225,7 @@ fun UpcomingBillCard(
         BillStatus.DUE_TOMORROW -> "Tomorrow"
         BillStatus.DUE_THIS_WEEK -> bill.dueDate.format(dateFormatter)
         BillStatus.UPCOMING -> bill.dueDate.format(dateFormatter)
+        BillStatus.PAID -> "Paid"
     }
 
     val sourceIcon = when (bill.source) {

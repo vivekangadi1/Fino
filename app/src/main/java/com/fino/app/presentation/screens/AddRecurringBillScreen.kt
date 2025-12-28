@@ -11,7 +11,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,8 @@ import com.fino.app.domain.model.Category
 import com.fino.app.domain.model.RecurringFrequency
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.AddRecurringBillViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,11 +39,89 @@ fun AddRecurringBillScreen(
     viewModel: AddRecurringBillViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    // Handle save success
-    LaunchedEffect(uiState.saveSuccess) {
-        if (uiState.saveSuccess) {
+    // Handle save/delete success
+    LaunchedEffect(uiState.saveSuccess, uiState.deleteSuccess) {
+        if (uiState.saveSuccess || uiState.deleteSuccess) {
             onNavigateBack()
+        }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Bill", color = TextPrimary) },
+            text = {
+                Text(
+                    "Are you sure you want to delete this bill? This action cannot be undone.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteBill()
+                    }
+                ) {
+                    Text("Delete", color = ExpenseRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    // Date Picker for ONE_TIME bills
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.specificDueDate?.toEpochDay()?.times(86400000L)
+                ?: System.currentTimeMillis()
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = LocalDate.ofEpochDay(millis / 86400000L)
+                        viewModel.updateSpecificDueDate(date)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("OK", color = Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = DarkSurface
+            )
+        ) {
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = DarkSurface,
+                    titleContentColor = TextPrimary,
+                    headlineContentColor = TextPrimary,
+                    weekdayContentColor = TextSecondary,
+                    dayContentColor = TextPrimary,
+                    selectedDayContainerColor = Primary,
+                    selectedDayContentColor = TextPrimary,
+                    todayContentColor = Primary,
+                    todayDateBorderColor = Primary
+                )
+            )
         }
     }
 
@@ -49,7 +131,7 @@ fun AddRecurringBillScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Add Recurring Bill",
+                        if (uiState.isEditMode) "Edit Bill" else "Add Bill",
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -61,6 +143,20 @@ fun AddRecurringBillScreen(
                             contentDescription = "Back",
                             tint = TextPrimary
                         )
+                    }
+                },
+                actions = {
+                    if (uiState.isEditMode) {
+                        IconButton(
+                            onClick = { showDeleteDialog = true },
+                            enabled = !uiState.isDeleting
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = ExpenseRed
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -132,19 +228,52 @@ fun AddRecurringBillScreen(
                 )
             }
 
-            // Day of Period
-            FormSection(
-                title = when (uiState.frequency) {
-                    RecurringFrequency.WEEKLY -> "Day of Week"
-                    RecurringFrequency.MONTHLY -> "Day of Month"
-                    RecurringFrequency.YEARLY -> "Day of Month"
+            // Day of Period or Due Date (for ONE_TIME)
+            if (uiState.frequency == RecurringFrequency.ONE_TIME) {
+                FormSection(title = "Due Date") {
+                    OutlinedTextField(
+                        value = uiState.specificDueDate?.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
+                            ?: "Select date",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDatePicker = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = Border,
+                            focusedContainerColor = DarkSurfaceVariant,
+                            unfocusedContainerColor = DarkSurfaceVariant,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Select date",
+                                    tint = Primary
+                                )
+                            }
+                        }
+                    )
                 }
-            ) {
-                DaySelector(
-                    frequency = uiState.frequency,
-                    selectedDay = uiState.dayOfPeriod,
-                    onDaySelected = { viewModel.updateDayOfPeriod(it) }
-                )
+            } else {
+                FormSection(
+                    title = when (uiState.frequency) {
+                        RecurringFrequency.WEEKLY -> "Day of Week"
+                        RecurringFrequency.MONTHLY -> "Day of Month"
+                        RecurringFrequency.YEARLY -> "Day of Month"
+                        RecurringFrequency.ONE_TIME -> "" // Won't reach here
+                    }
+                ) {
+                    DaySelector(
+                        frequency = uiState.frequency,
+                        selectedDay = uiState.dayOfPeriod,
+                        onDaySelected = { viewModel.updateDayOfPeriod(it) }
+                    )
+                }
             }
 
             // Category
@@ -176,6 +305,16 @@ fun AddRecurringBillScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // Loading state
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Primary)
+                }
+            }
+
             // Save button
             Button(
                 onClick = { viewModel.saveBill() },
@@ -184,7 +323,7 @@ fun AddRecurringBillScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                enabled = !uiState.isSaving
+                enabled = !uiState.isSaving && !uiState.isLoading && !uiState.isDeleting
             ) {
                 if (uiState.isSaving) {
                     CircularProgressIndicator(
@@ -200,7 +339,7 @@ fun AddRecurringBillScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Save Bill",
+                        text = if (uiState.isEditMode) "Update Bill" else "Save Bill",
                         color = TextOnGradient,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
@@ -315,6 +454,9 @@ private fun DaySelector(
                 }
             }
         }
+        RecurringFrequency.ONE_TIME -> {
+            // Not used - ONE_TIME uses date picker instead of DaySelector
+        }
     }
 }
 
@@ -413,6 +555,7 @@ private fun CategoryChip(
 }
 
 private fun RecurringFrequency.toDisplayString(): String = when (this) {
+    RecurringFrequency.ONE_TIME -> "One-Time"
     RecurringFrequency.WEEKLY -> "Weekly"
     RecurringFrequency.MONTHLY -> "Monthly"
     RecurringFrequency.YEARLY -> "Yearly"

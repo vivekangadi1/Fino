@@ -69,6 +69,25 @@ class CreditCardRepository @Inject constructor(
         return dao.getActiveCardCount()
     }
 
+    // Payment tracking operations
+    suspend fun markAsPaid(cardId: Long, paidAmount: Double? = null) {
+        val now = DateUtils.toEpochMillis(LocalDate.now())
+        dao.markAsPaid(cardId, true, now, paidAmount)
+    }
+
+    suspend fun markAsUnpaid(cardId: Long) {
+        dao.markAsUnpaid(cardId)
+    }
+
+    // User override operations
+    suspend fun updateBillDetails(cardId: Long, amount: Double?, dueDate: LocalDate?) {
+        dao.updateBillOverride(cardId, amount, dueDate?.let { DateUtils.toEpochMillis(it) })
+    }
+
+    suspend fun resetBillStatus(cardId: Long) {
+        dao.resetBillStatus(cardId)
+    }
+
     private fun CreditCardEntity.toDomain(): CreditCard {
         return CreditCard(
             id = id,
@@ -83,7 +102,14 @@ class CreditCardRepository @Inject constructor(
             previousDueDate = previousDueDate?.let { DateUtils.toLocalDate(it) },
             minimumDue = minimumDue,
             isActive = isActive,
-            createdAt = DateUtils.fromEpochMillis(createdAt)
+            createdAt = DateUtils.fromEpochMillis(createdAt),
+            // Payment tracking
+            isPaid = isPaid,
+            paidDate = paidDate?.let { DateUtils.toLocalDate(it) },
+            paidAmount = paidAmount,
+            // User overrides
+            userAdjustedDue = userAdjustedDue,
+            userAdjustedDueDate = userAdjustedDueDate?.let { DateUtils.toLocalDate(it) }
         )
     }
 
@@ -101,7 +127,14 @@ class CreditCardRepository @Inject constructor(
             previousDueDate = previousDueDate?.let { DateUtils.toEpochMillis(it) },
             minimumDue = minimumDue,
             isActive = isActive,
-            createdAt = DateUtils.toEpochMillis(createdAt)
+            createdAt = DateUtils.toEpochMillis(createdAt),
+            // Payment tracking
+            isPaid = isPaid,
+            paidDate = paidDate?.let { DateUtils.toEpochMillis(it) },
+            paidAmount = paidAmount,
+            // User overrides
+            userAdjustedDue = userAdjustedDue,
+            userAdjustedDueDate = userAdjustedDueDate?.let { DateUtils.toEpochMillis(it) }
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.fino.app.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.CategoryRepository
@@ -18,34 +19,82 @@ import java.time.LocalDateTime
 import javax.inject.Inject
 
 /**
- * UI State for adding a recurring bill
+ * UI State for adding/editing a recurring bill
  */
 data class AddRecurringBillUiState(
+    val isEditMode: Boolean = false,
+    val editingRuleId: Long? = null,
+    val originalRule: RecurringRule? = null,
     val merchantName: String = "",
     val amount: String = "",
     val frequency: RecurringFrequency = RecurringFrequency.MONTHLY,
     val dayOfPeriod: Int = 1,
+    val specificDueDate: LocalDate? = null, // For ONE_TIME bills
     val selectedCategoryId: Long? = null,
     val categories: List<Category> = emptyList(),
+    val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val isDeleting: Boolean = false,
     val saveSuccess: Boolean = false,
+    val deleteSuccess: Boolean = false,
     val error: String? = null
 )
 
 /**
- * ViewModel for the Add Recurring Bill screen
+ * ViewModel for the Add/Edit Recurring Bill screen
  */
 @HiltViewModel
 class AddRecurringBillViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val recurringRuleRepository: RecurringRuleRepository,
     private val categoryRepository: CategoryRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddRecurringBillUiState())
+    // Get ruleId from navigation arguments (null if adding new)
+    private val ruleId: Long? = savedStateHandle.get<Long>("ruleId")?.takeIf { it > 0 }
+
+    private val _uiState = MutableStateFlow(
+        AddRecurringBillUiState(
+            isEditMode = ruleId != null,
+            editingRuleId = ruleId
+        )
+    )
     val uiState: StateFlow<AddRecurringBillUiState> = _uiState.asStateFlow()
 
     init {
         loadCategories()
+        if (ruleId != null) {
+            loadRuleForEditing(ruleId)
+        }
+    }
+
+    /**
+     * Load existing rule for editing
+     */
+    private fun loadRuleForEditing(ruleId: Long) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                val rule = recurringRuleRepository.getById(ruleId)
+                if (rule != null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            originalRule = rule,
+                            merchantName = rule.merchantPattern,
+                            amount = rule.expectedAmount.toLong().toString(),
+                            frequency = rule.frequency,
+                            dayOfPeriod = rule.dayOfPeriod ?: 1,
+                            selectedCategoryId = if (rule.categoryId > 0) rule.categoryId else null
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = "Bill not found") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
     }
 
     /**
@@ -90,6 +139,13 @@ class AddRecurringBillViewModel @Inject constructor(
     }
 
     /**
+     * Update specific due date (for ONE_TIME bills)
+     */
+    fun updateSpecificDueDate(date: LocalDate) {
+        _uiState.update { it.copy(specificDueDate = date, error = null) }
+    }
+
+    /**
      * Select a category
      */
     fun selectCategory(categoryId: Long?) {
@@ -97,7 +153,7 @@ class AddRecurringBillViewModel @Inject constructor(
     }
 
     /**
-     * Save the recurring bill
+     * Save the recurring bill (create new or update existing)
      */
     fun saveBill() {
         viewModelScope.launch {
@@ -116,33 +172,95 @@ class AddRecurringBillViewModel @Inject constructor(
                 return@launch
             }
 
+            // Validate due date for ONE_TIME bills
+            if (state.frequency == RecurringFrequency.ONE_TIME && state.specificDueDate == null) {
+                _uiState.update { it.copy(error = "Please select a due date") }
+                return@launch
+            }
+
             _uiState.update { it.copy(isSaving = true, error = null) }
 
             try {
                 // Calculate next expected date based on frequency and day of period
-                val nextExpected = calculateNextExpectedDate(state.frequency, state.dayOfPeriod)
+                val nextExpected = if (state.frequency == RecurringFrequency.ONE_TIME) {
+                    state.specificDueDate!!
+                } else {
+                    calculateNextExpectedDate(state.frequency, state.dayOfPeriod)
+                }
 
-                val rule = RecurringRule(
-                    id = 0L,
-                    merchantPattern = state.merchantName,
-                    categoryId = state.selectedCategoryId ?: 0L,
-                    expectedAmount = amount,
-                    amountVariance = 0.1f,
-                    frequency = state.frequency,
-                    dayOfPeriod = state.dayOfPeriod,
-                    lastOccurrence = null,
-                    nextExpected = nextExpected,
-                    occurrenceCount = 0,
-                    isActive = true,
-                    isUserConfirmed = true,
-                    createdAt = LocalDateTime.now()
-                )
-
-                recurringRuleRepository.insert(rule)
+                if (state.isEditMode && state.originalRule != null) {
+                    // Update existing rule
+                    val updatedRule = state.originalRule.copy(
+                        merchantPattern = state.merchantName,
+                        categoryId = state.selectedCategoryId ?: 0L,
+                        expectedAmount = amount,
+                        frequency = state.frequency,
+                        dayOfPeriod = state.dayOfPeriod,
+                        nextExpected = nextExpected
+                    )
+                    recurringRuleRepository.update(updatedRule)
+                } else {
+                    // Create new rule
+                    val rule = RecurringRule(
+                        id = 0L,
+                        merchantPattern = state.merchantName,
+                        categoryId = state.selectedCategoryId ?: 0L,
+                        expectedAmount = amount,
+                        amountVariance = 0.1f,
+                        frequency = state.frequency,
+                        dayOfPeriod = state.dayOfPeriod,
+                        lastOccurrence = null,
+                        nextExpected = nextExpected,
+                        occurrenceCount = 0,
+                        isActive = true,
+                        isUserConfirmed = true,
+                        createdAt = LocalDateTime.now()
+                    )
+                    recurringRuleRepository.insert(rule)
+                }
 
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, error = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Delete the recurring bill (only in edit mode)
+     */
+    fun deleteBill() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val rule = state.originalRule ?: return@launch
+
+            _uiState.update { it.copy(isDeleting = true, error = null) }
+
+            try {
+                recurringRuleRepository.delete(rule)
+                _uiState.update { it.copy(isDeleting = false, deleteSuccess = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isDeleting = false, error = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Deactivate rule instead of deleting (keeps history)
+     */
+    fun deactivateBill() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val rule = state.originalRule ?: return@launch
+
+            _uiState.update { it.copy(isDeleting = true, error = null) }
+
+            try {
+                val deactivatedRule = rule.copy(isActive = false)
+                recurringRuleRepository.update(deactivatedRule)
+                _uiState.update { it.copy(isDeleting = false, deleteSuccess = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isDeleting = false, error = e.message) }
             }
         }
     }
@@ -154,6 +272,10 @@ class AddRecurringBillViewModel @Inject constructor(
         val today = LocalDate.now()
 
         return when (frequency) {
+            RecurringFrequency.ONE_TIME -> {
+                // Should not reach here as we use specificDueDate for ONE_TIME
+                today
+            }
             RecurringFrequency.WEEKLY -> {
                 // dayOfPeriod is 1-7 (Monday to Sunday)
                 val currentDayOfWeek = today.dayOfWeek.value

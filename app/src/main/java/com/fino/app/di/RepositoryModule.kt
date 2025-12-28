@@ -62,6 +62,15 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun providePatternSuggestionRepository(
+        dao: PatternSuggestionDao,
+        recurringRuleRepository: RecurringRuleRepository
+    ): PatternSuggestionRepository {
+        return PatternSuggestionRepository(dao, recurringRuleRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideUpcomingBillsRepository(
         recurringRuleRepository: RecurringRuleRepository,
         creditCardRepository: CreditCardRepository,

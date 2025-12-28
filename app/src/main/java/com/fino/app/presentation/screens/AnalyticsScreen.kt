@@ -42,6 +42,7 @@ fun AnalyticsScreen(
     onNavigateToRewards: () -> Unit,
     onNavigateToComparison: () -> Unit = {},
     onCategoryClick: (categoryId: Long, categoryName: String) -> Unit = { _, _ -> },
+    onPaymentMethodClick: (method: String, filter: String) -> Unit = { _, _ -> },
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,6 +63,8 @@ fun AnalyticsScreen(
         viewModel.loadPaymentMethodTrend()
         kotlinx.coroutines.delay(300)
         viewModel.loadSpendingHeatmapData()
+        kotlinx.coroutines.delay(300)
+        viewModel.loadBudgetForecast()
     }
 
     // Handle export and share
@@ -230,7 +233,19 @@ fun AnalyticsScreen(
 
                 // Payment Method Breakdown
                 item {
-                    PaymentMethodSection(paymentMethodBreakdown = uiState.paymentMethodBreakdown)
+                    PaymentMethodSection(
+                        paymentMethodBreakdown = uiState.paymentMethodBreakdown,
+                        onViewAllUpi = { filter -> onPaymentMethodClick("UPI", filter) },
+                        onViewAllCreditCard = { filter -> onPaymentMethodClick("CREDIT_CARD", filter) },
+                        onViewAllOther = { onPaymentMethodClick("UNKNOWN", "") }
+                    )
+                }
+
+                // Budget Forecast
+                uiState.budgetForecast?.let { forecast ->
+                    item {
+                        ForecastCard(forecast = forecast)
+                    }
                 }
 
                 // Insights

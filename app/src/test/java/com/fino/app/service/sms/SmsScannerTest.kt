@@ -1,11 +1,15 @@
 package com.fino.app.service.sms
 
+import android.content.Context
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionSource
 import com.fino.app.domain.model.TransactionType
+import com.fino.app.service.categorization.SmartCategorizationService
+import com.fino.app.service.categorization.CategorizationResult
 import com.fino.app.service.parser.ParsedTransaction
 import com.fino.app.service.parser.SmsParser
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
@@ -17,16 +21,34 @@ import java.time.YearMonth
 class SmsScannerTest {
 
     private lateinit var smsScanner: SmsScanner
+    private lateinit var mockContext: Context
     private lateinit var mockSmsReader: SmsReader
     private lateinit var mockTransactionRepository: TransactionRepository
     private lateinit var mockSmsParser: SmsParser
+    private lateinit var mockSmartCategorizationService: SmartCategorizationService
 
     @Before
     fun setup() {
+        mockContext = mock()
         mockSmsReader = mock()
         mockTransactionRepository = mock()
         mockSmsParser = mock()
-        smsScanner = SmsScanner(mockSmsReader, mockTransactionRepository, mockSmsParser)
+        mockSmartCategorizationService = mock()
+
+        // Default categorization result
+        runBlocking {
+            whenever(mockSmartCategorizationService.categorize(any(), any(), any(), any())).thenReturn(
+                CategorizationResult(
+                    categoryId = 1L,
+                    confidence = 0.9f,
+                    method = "merchant_mapping",
+                    suggestedName = "Test Merchant",
+                    tier = 1
+                )
+            )
+        }
+
+        smsScanner = SmsScanner(mockContext, mockSmsReader, mockTransactionRepository, mockSmsParser, mockSmartCategorizationService)
     }
 
     @Test

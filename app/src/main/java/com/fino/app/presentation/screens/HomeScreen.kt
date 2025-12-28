@@ -24,12 +24,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.fino.app.domain.model.BillSource
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionType
 import com.fino.app.presentation.components.*
+import com.fino.app.presentation.components.displayName
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.HomeViewModel
 import com.fino.app.presentation.viewmodel.SmsScanViewModel
+import com.fino.app.presentation.viewmodel.SpendingPeriod
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,8 +44,13 @@ fun HomeScreen(
     onAddTransaction: () -> Unit,
     onNavigateToUpcomingBills: () -> Unit,
     onAddRecurringBill: () -> Unit,
+    onEditRecurringBill: (Long) -> Unit = {},
+    onEditTransaction: (Long) -> Unit = {},
     onNavigateToEvents: () -> Unit = {},
     onNavigateToEventDetail: (Long) -> Unit = {},
+    onNavigateToReviewUncategorized: () -> Unit = {},
+    onNavigateToPeriodTransactions: (Long, Long, String) -> Unit = { _, _, _ -> },
+    onNavigateToTypeTransactions: (String, String) -> Unit = { _, _ -> },
     viewModel: HomeViewModel = hiltViewModel(),
     smsScanViewModel: SmsScanViewModel = hiltViewModel()
 ) {
@@ -158,13 +166,43 @@ fun HomeScreen(
                 )
             }
 
+            // Uncategorized Badge
+            if (uiState.uncategorizedCount > 0) {
+                item {
+                    UncategorizedSection(
+                        count = uiState.uncategorizedCount,
+                        onClick = onNavigateToReviewUncategorized
+                    )
+                }
+            }
+
             // Stats Cards
             item {
                 ModernStatsSection(
                     monthlySpent = uiState.monthlySpent,
                     monthlyIncome = uiState.monthlyIncome,
-                    monthlySaved = uiState.monthlySaved
+                    monthlySaved = uiState.monthlySaved,
+                    onSpentClick = { onNavigateToTypeTransactions("DEBIT", "Expenses") },
+                    onIncomeClick = { onNavigateToTypeTransactions("CREDIT", "Income") },
+                    onSavedClick = { onNavigateToTypeTransactions("SAVINGS", "Savings") }
                 )
+            }
+
+            // Spending Tabs Section
+            item {
+                SlideInCard(delay = 150) {
+                    SpendingTabsSection(
+                        selectedPeriod = uiState.selectedSpendingPeriod,
+                        periodSpending = uiState.periodSpending,
+                        categoryBreakdown = uiState.periodCategoryBreakdown,
+                        onPeriodSelected = { viewModel.selectSpendingPeriod(it) },
+                        onCategoryClick = { /* Navigate to category transactions */ },
+                        onTotalClick = { period ->
+                            val (startDate, endDate) = viewModel.getDateRangeForPeriod(period)
+                            onNavigateToPeriodTransactions(startDate, endDate, period.displayName)
+                        }
+                    )
+                }
             }
 
             // Events Section - always visible
@@ -191,7 +229,14 @@ fun HomeScreen(
                     nextBills = uiState.nextBills,
                     hasUrgentBills = uiState.hasUrgentBills,
                     onViewAll = onNavigateToUpcomingBills,
-                    onAddBill = onAddRecurringBill
+                    onAddBill = onAddRecurringBill,
+                    onBillClick = { bill ->
+                        // Navigate to edit based on bill source
+                        when (bill.source) {
+                            BillSource.RECURRING_RULE -> onEditRecurringBill(bill.sourceId)
+                            else -> onNavigateToUpcomingBills() // For other sources, go to full list
+                        }
+                    }
                 )
             }
 
@@ -199,7 +244,8 @@ fun HomeScreen(
             item {
                 ModernTransactionsSection(
                     transactions = uiState.recentTransactions,
-                    onSeeAll = onNavigateToAnalytics
+                    onSeeAll = onNavigateToAnalytics,
+                    onTransactionClick = onEditTransaction
                 )
             }
 
@@ -415,7 +461,10 @@ private val SavingsGradient = Brush.linearGradient(
 private fun ModernStatsSection(
     monthlySpent: Double,
     monthlyIncome: Double,
-    monthlySaved: Double
+    monthlySaved: Double,
+    onSpentClick: () -> Unit = {},
+    onIncomeClick: () -> Unit = {},
+    onSavedClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -437,6 +486,7 @@ private fun ModernStatsSection(
                 label = "Spent",
                 amount = monthlySpent,
                 gradient = FinoGradients.Expense,
+                onClick = onSpentClick,
                 modifier = Modifier.weight(1f)
             )
 
@@ -446,6 +496,7 @@ private fun ModernStatsSection(
                 label = "Income",
                 amount = monthlyIncome,
                 gradient = FinoGradients.Income,
+                onClick = onIncomeClick,
                 modifier = Modifier.weight(1f)
             )
 
@@ -455,6 +506,7 @@ private fun ModernStatsSection(
                 label = "Saved",
                 amount = monthlySaved,
                 gradient = SavingsGradient,
+                onClick = onSavedClick,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -467,11 +519,13 @@ private fun StatCard(
     label: String,
     amount: Double,
     gradient: Brush,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
             .background(gradient)
             .padding(12.dp)
     ) {
@@ -505,7 +559,8 @@ private fun StatCard(
 @Composable
 private fun ModernTransactionsSection(
     transactions: List<Transaction>,
-    onSeeAll: () -> Unit
+    onSeeAll: () -> Unit,
+    onTransactionClick: (Long) -> Unit = {}
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -557,7 +612,10 @@ private fun ModernTransactionsSection(
             // Transaction List
             transactions.forEachIndexed { index, transaction ->
                 SlideInCard(delay = 100 + (index * 50)) {
-                    TransactionRow(transaction = transaction)
+                    TransactionRow(
+                        transaction = transaction,
+                        onClick = { onTransactionClick(transaction.id) }
+                    )
                 }
                 if (index < transactions.lastIndex) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -571,7 +629,10 @@ private fun ModernTransactionsSection(
 private val SavingsBlue = Color(0xFF4A90D9)
 
 @Composable
-private fun TransactionRow(transaction: Transaction) {
+private fun TransactionRow(
+    transaction: Transaction,
+    onClick: () -> Unit = {}
+) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm") }
 
     val (bgColor, iconColor, icon, prefix) = when (transaction.type) {
@@ -600,6 +661,7 @@ private fun TransactionRow(transaction: Transaction) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(DarkSurfaceVariant)
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Row(
@@ -736,6 +798,66 @@ private fun EventsEmptySection(
 
 // Helper data class for destructuring
 private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+@Composable
+private fun UncategorizedSection(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Warning.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Warning.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Category,
+                    contentDescription = null,
+                    tint = Warning,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$count Uncategorized",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Warning
+                )
+                Text(
+                    text = "Tap to categorize and improve tracking",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Review",
+                tint = Warning,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
 
 @Composable
 private fun ModernBudgetCard() {

@@ -45,4 +45,18 @@ interface CreditCardDao {
 
     @Query("SELECT COUNT(*) FROM credit_cards WHERE isActive = 1")
     suspend fun getActiveCardCount(): Int
+
+    // Payment tracking operations
+    @Query("UPDATE credit_cards SET isPaid = :isPaid, paidDate = :paidDate, paidAmount = :paidAmount WHERE id = :cardId")
+    suspend fun markAsPaid(cardId: Long, isPaid: Boolean, paidDate: Long?, paidAmount: Double?)
+
+    @Query("UPDATE credit_cards SET isPaid = 0, paidDate = NULL, paidAmount = NULL WHERE id = :cardId")
+    suspend fun markAsUnpaid(cardId: Long)
+
+    // User override operations
+    @Query("UPDATE credit_cards SET userAdjustedDue = :amount, userAdjustedDueDate = :dueDate WHERE id = :cardId")
+    suspend fun updateBillOverride(cardId: Long, amount: Double?, dueDate: Long?)
+
+    @Query("UPDATE credit_cards SET isPaid = 0, paidDate = NULL, paidAmount = NULL, userAdjustedDue = NULL, userAdjustedDueDate = NULL WHERE id = :cardId")
+    suspend fun resetBillStatus(cardId: Long)
 }

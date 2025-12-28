@@ -29,6 +29,7 @@ data class EventEntity(
     val endDate: Long? = null,        // Epoch millis, null = ongoing
     val status: EventStatus = EventStatus.ACTIVE,
     val isActive: Boolean = true,
+    val excludeFromMainTotals: Boolean = false,  // If true, event expenses excluded from main totals
     val createdAt: Long,              // Epoch millis
     val updatedAt: Long               // Epoch millis
 )

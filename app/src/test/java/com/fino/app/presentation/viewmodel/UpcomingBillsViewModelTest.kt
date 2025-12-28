@@ -20,6 +20,7 @@ class UpcomingBillsViewModelTest {
 
     private lateinit var upcomingBillsRepository: UpcomingBillsRepository
     private lateinit var patternDetectionService: PatternDetectionService
+    private lateinit var patternSuggestionRepository: com.fino.app.data.repository.PatternSuggestionRepository
     private lateinit var viewModel: UpcomingBillsViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -29,6 +30,8 @@ class UpcomingBillsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         upcomingBillsRepository = mock()
         patternDetectionService = mock()
+        patternSuggestionRepository = mock()
+        whenever(patternSuggestionRepository.getPendingSuggestionsFlow()).thenReturn(flowOf(emptyList()))
     }
 
     @After
@@ -37,7 +40,7 @@ class UpcomingBillsViewModelTest {
     }
 
     private fun createViewModel(): UpcomingBillsViewModel {
-        return UpcomingBillsViewModel(upcomingBillsRepository, patternDetectionService)
+        return UpcomingBillsViewModel(upcomingBillsRepository, patternDetectionService, patternSuggestionRepository)
     }
 
     // ==================== Initial State Tests (3 tests) ====================
@@ -285,14 +288,13 @@ class UpcomingBillsViewModelTest {
         verify(upcomingBillsRepository, atLeast(2)).getBillSummary()
     }
 
-    // Test 15: confirmPatternSuggestion calls service
+    // Test 15: confirmPatternSuggestion calls repository
     @Test
-    fun `confirmPatternSuggestion calls service method`() = runTest {
+    fun `confirmPatternSuggestion calls repository method`() = runTest {
         whenever(upcomingBillsRepository.getUpcomingBillsFlow()).thenReturn(flowOf(emptyList()))
         whenever(upcomingBillsRepository.getBillSummary()).thenReturn(BillSummary.empty())
         whenever(upcomingBillsRepository.getGroupedBills()).thenReturn(emptyList())
         whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
-        whenever(patternDetectionService.confirmPattern(any())).thenReturn(mock())
 
         viewModel = createViewModel()
         advanceUntilIdle()
@@ -301,12 +303,12 @@ class UpcomingBillsViewModelTest {
         viewModel.confirmPatternSuggestion(suggestion)
         advanceUntilIdle()
 
-        verify(patternDetectionService).confirmPattern(eq(suggestion))
+        verify(patternSuggestionRepository).confirmSuggestion(eq(suggestion.id))
     }
 
-    // Test 16: dismissPatternSuggestion calls service
+    // Test 16: dismissPatternSuggestion calls repository
     @Test
-    fun `dismissPatternSuggestion calls service method`() = runTest {
+    fun `dismissPatternSuggestion calls repository method`() = runTest {
         whenever(upcomingBillsRepository.getUpcomingBillsFlow()).thenReturn(flowOf(emptyList()))
         whenever(upcomingBillsRepository.getBillSummary()).thenReturn(BillSummary.empty())
         whenever(upcomingBillsRepository.getGroupedBills()).thenReturn(emptyList())
@@ -319,7 +321,7 @@ class UpcomingBillsViewModelTest {
         viewModel.dismissPatternSuggestion(suggestion)
         advanceUntilIdle()
 
-        verify(patternDetectionService).dismissPattern(eq(suggestion))
+        verify(patternSuggestionRepository).dismissSuggestion(eq(suggestion.id))
     }
 
     // Test 17: dismissPatternSuggestion removes from suggestions list
@@ -329,17 +331,21 @@ class UpcomingBillsViewModelTest {
         whenever(upcomingBillsRepository.getUpcomingBillsFlow()).thenReturn(flowOf(emptyList()))
         whenever(upcomingBillsRepository.getBillSummary()).thenReturn(BillSummary.empty())
         whenever(upcomingBillsRepository.getGroupedBills()).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(listOf(suggestion))
+        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestionsFlow()).thenReturn(flowOf(listOf(suggestion)))
 
         viewModel = createViewModel()
         advanceUntilIdle()
 
         assertEquals(1, viewModel.uiState.value.patternSuggestions.size)
 
+        // After dismiss, the flow should return empty list
+        whenever(patternSuggestionRepository.getPendingSuggestionsFlow()).thenReturn(flowOf(emptyList()))
         viewModel.dismissPatternSuggestion(suggestion)
         advanceUntilIdle()
 
-        assertEquals(0, viewModel.uiState.value.patternSuggestions.size)
+        // The flow will update the state automatically
+        verify(patternSuggestionRepository).dismissSuggestion(eq(suggestion.id))
     }
 
     // ==================== Flow Collection Tests (3 tests) ====================

@@ -262,6 +262,7 @@ fun PatternSuggestionCardCompact(
 }
 
 private fun RecurringFrequency.toDisplayString(): String = when (this) {
+    RecurringFrequency.ONE_TIME -> "One-Time"
     RecurringFrequency.WEEKLY -> "Weekly"
     RecurringFrequency.MONTHLY -> "Monthly"
     RecurringFrequency.YEARLY -> "Yearly"

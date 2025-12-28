@@ -16,7 +16,9 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object AddTransaction : Screen("add_transaction")
     object UpcomingBills : Screen("upcoming_bills")
-    object AddRecurringBill : Screen("add_recurring_bill")
+    object AddRecurringBill : Screen("add_recurring_bill?ruleId={ruleId}") {
+        fun createRoute(ruleId: Long? = null) = if (ruleId != null) "add_recurring_bill?ruleId=$ruleId" else "add_recurring_bill"
+    }
     object Comparison : Screen("comparison")
     object Events : Screen("events")
     object EventDetail : Screen("event/{eventId}") {
@@ -51,6 +53,34 @@ sealed class Screen(val route: String) {
     object CategoryTransactions : Screen("category_transactions/{categoryId}/{categoryName}") {
         fun createRoute(categoryId: Long, categoryName: String) = "category_transactions/$categoryId/${categoryName.replace("/", "_")}"
     }
+    object PeriodTransactions : Screen("period_transactions/{startDate}/{endDate}/{periodLabel}") {
+        fun createRoute(startDate: Long, endDate: Long, periodLabel: String) =
+            "period_transactions/$startDate/$endDate/${periodLabel.replace(" ", "_")}"
+    }
+    object TypeTransactions : Screen("type_transactions/{transactionType}/{label}") {
+        fun createRoute(transactionType: String, label: String) =
+            "type_transactions/$transactionType/$label"
+    }
+    object PaymentMethodTransactions : Screen("payment_method_transactions/{method}/{filter}") {
+        fun createRoute(method: String, filter: String = "") = "payment_method_transactions/$method/${filter.replace("/", "_").ifEmpty { "all" }}"
+    }
+    object ReviewUncategorized : Screen("review_uncategorized")
+    object ManageMerchantMappings : Screen("manage_merchant_mappings")
+    object PatternSuggestions : Screen("pattern_suggestions")
+    object AddEditCreditCard : Screen("add_edit_credit_card?cardId={cardId}") {
+        fun createRoute(cardId: Long? = null) = if (cardId != null) "add_edit_credit_card?cardId=$cardId" else "add_edit_credit_card"
+    }
+    object EMITracker : Screen("emi_tracker")
+    object AddEditEMI : Screen("add_edit_emi?emiId={emiId}") {
+        fun createRoute(emiId: Long? = null) = if (emiId != null) "add_edit_emi?emiId=$emiId" else "add_edit_emi"
+    }
+    object AddEditLoan : Screen("add_edit_loan?loanId={loanId}") {
+        fun createRoute(loanId: Long? = null) = if (loanId != null) "add_edit_loan?loanId=$loanId" else "add_edit_loan"
+    }
+    object SettingsScreen : Screen("settings_screen")
+    object EditCreditCardBill : Screen("edit_credit_card_bill/{cardId}") {
+        fun createRoute(cardId: Long) = "edit_credit_card_bill/$cardId"
+    }
 }
 
 @Composable
@@ -68,9 +98,18 @@ fun FinoNavigation() {
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
                 onAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
                 onNavigateToUpcomingBills = { navController.navigate(Screen.UpcomingBills.route) },
-                onAddRecurringBill = { navController.navigate(Screen.AddRecurringBill.route) },
+                onAddRecurringBill = { navController.navigate(Screen.AddRecurringBill.createRoute()) },
+                onEditRecurringBill = { ruleId -> navController.navigate(Screen.AddRecurringBill.createRoute(ruleId)) },
+                onEditTransaction = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) },
                 onNavigateToEvents = { navController.navigate(Screen.Events.route) },
-                onNavigateToEventDetail = { eventId -> navController.navigate(Screen.EventDetail.createRoute(eventId)) }
+                onNavigateToEventDetail = { eventId -> navController.navigate(Screen.EventDetail.createRoute(eventId)) },
+                onNavigateToReviewUncategorized = { navController.navigate(Screen.ReviewUncategorized.route) },
+                onNavigateToPeriodTransactions = { startDate, endDate, periodLabel ->
+                    navController.navigate(Screen.PeriodTransactions.createRoute(startDate, endDate, periodLabel))
+                },
+                onNavigateToTypeTransactions = { transactionType, label ->
+                    navController.navigate(Screen.TypeTransactions.createRoute(transactionType, label))
+                }
             )
         }
 
@@ -78,7 +117,10 @@ fun FinoNavigation() {
             CardsScreen(
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
-                onNavigateToRewards = { navController.navigate(Screen.Rewards.route) }
+                onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
+                onAddCard = { navController.navigate(Screen.AddEditCreditCard.createRoute()) },
+                onEditCard = { cardId -> navController.navigate(Screen.AddEditCreditCard.createRoute(cardId)) },
+                onNavigateToEMITracker = { navController.navigate(Screen.EMITracker.route) }
             )
         }
 
@@ -90,6 +132,9 @@ fun FinoNavigation() {
                 onNavigateToComparison = { navController.navigate(Screen.Comparison.route) },
                 onCategoryClick = { categoryId, categoryName ->
                     navController.navigate(Screen.CategoryTransactions.createRoute(categoryId, categoryName))
+                },
+                onPaymentMethodClick = { method, filter ->
+                    navController.navigate(Screen.PaymentMethodTransactions.createRoute(method, filter))
                 }
             )
         }
@@ -98,7 +143,8 @@ fun FinoNavigation() {
             RewardsScreen(
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
-                onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) }
+                onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
+                onNavigateToSettings = { navController.navigate(Screen.SettingsScreen.route) }
             )
         }
 
@@ -111,11 +157,34 @@ fun FinoNavigation() {
         composable(Screen.UpcomingBills.route) {
             UpcomingBillsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onAddBill = { navController.navigate(Screen.AddRecurringBill.route) }
+                onAddBill = { navController.navigate(Screen.AddRecurringBill.createRoute()) },
+                onEditBill = { ruleId -> navController.navigate(Screen.AddRecurringBill.createRoute(ruleId)) },
+                onEditCreditCardBill = { cardId -> navController.navigate(Screen.EditCreditCardBill.createRoute(cardId)) },
+                onScanPatterns = { navController.navigate(Screen.PatternSuggestions.route) }
             )
         }
 
-        composable(Screen.AddRecurringBill.route) {
+        // Edit Credit Card Bill
+        composable(
+            route = Screen.EditCreditCardBill.route,
+            arguments = listOf(navArgument("cardId") { type = NavType.LongType })
+        ) {
+            // EditCreditCardBillViewModel reads cardId from SavedStateHandle
+            EditCreditCardBillScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.AddRecurringBill.route,
+            arguments = listOf(
+                navArgument("ruleId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                }
+            )
+        ) {
+            // AddRecurringBillViewModel reads ruleId from SavedStateHandle
             AddRecurringBillScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -281,6 +350,142 @@ fun FinoNavigation() {
                 onTransactionClick = { transactionId ->
                     navController.navigate(Screen.EditTransaction.createRoute(transactionId))
                 }
+            )
+        }
+
+        // Period Transactions (Today, Week, Month, Year)
+        composable(
+            route = Screen.PeriodTransactions.route,
+            arguments = listOf(
+                navArgument("startDate") { type = NavType.LongType },
+                navArgument("endDate") { type = NavType.LongType },
+                navArgument("periodLabel") { type = NavType.StringType }
+            )
+        ) {
+            PeriodTransactionsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(Screen.EditTransaction.createRoute(transactionId))
+                }
+            )
+        }
+
+        // Type Transactions (Expenses, Income, Savings)
+        composable(
+            route = Screen.TypeTransactions.route,
+            arguments = listOf(
+                navArgument("transactionType") { type = NavType.StringType },
+                navArgument("label") { type = NavType.StringType }
+            )
+        ) {
+            TypeTransactionsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(Screen.EditTransaction.createRoute(transactionId))
+                }
+            )
+        }
+
+        // Payment Method Transactions
+        composable(
+            route = Screen.PaymentMethodTransactions.route,
+            arguments = listOf(
+                navArgument("method") { type = NavType.StringType },
+                navArgument("filter") { type = NavType.StringType; defaultValue = "all" }
+            )
+        ) {
+            // PaymentMethodTransactionsViewModel reads method and filter from SavedStateHandle
+            PaymentMethodTransactionsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(Screen.EditTransaction.createRoute(transactionId))
+                }
+            )
+        }
+
+        // Review Uncategorized Transactions
+        composable(Screen.ReviewUncategorized.route) {
+            ReviewUncategorizedScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onManageMappings = { navController.navigate(Screen.ManageMerchantMappings.route) }
+            )
+        }
+
+        // Manage Merchant Mappings
+        composable(Screen.ManageMerchantMappings.route) {
+            ManageMerchantMappingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Pattern Suggestions
+        composable(Screen.PatternSuggestions.route) {
+            PatternSuggestionsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Add/Edit Credit Card
+        composable(
+            route = Screen.AddEditCreditCard.route,
+            arguments = listOf(
+                navArgument("cardId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                }
+            )
+        ) {
+            AddEditCreditCardScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // EMI Tracker
+        composable(Screen.EMITracker.route) {
+            EMITrackerScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAddEMI = { navController.navigate(Screen.AddEditEMI.createRoute()) },
+                onEditEMI = { emiId -> navController.navigate(Screen.AddEditEMI.createRoute(emiId)) },
+                onAddLoan = { navController.navigate(Screen.AddEditLoan.createRoute()) },
+                onEditLoan = { loanId -> navController.navigate(Screen.AddEditLoan.createRoute(loanId)) }
+            )
+        }
+
+        // Add/Edit EMI
+        composable(
+            route = Screen.AddEditEMI.route,
+            arguments = listOf(
+                navArgument("emiId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                }
+            )
+        ) {
+            AddEditEMIScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Add/Edit Loan
+        composable(
+            route = Screen.AddEditLoan.route,
+            arguments = listOf(
+                navArgument("loanId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                }
+            )
+        ) {
+            AddEditLoanScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Settings Screen
+        composable(Screen.SettingsScreen.route) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMerchantMappings = { navController.navigate(Screen.ManageMerchantMappings.route) }
             )
         }
     }

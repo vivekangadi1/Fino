@@ -69,5 +69,10 @@ class AmountFormatter {
 
         fun format(amount: Double): String = instance.format(amount)
         fun formatCompact(amount: Double): String = instance.formatCompact(amount)
+
+        /**
+         * Alias for format() for compatibility.
+         */
+        fun formatWithRupeeSymbol(amount: Double): String = instance.format(amount)
     }
 }

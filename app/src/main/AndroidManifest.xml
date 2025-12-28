@@ -49,6 +49,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- Notification Action Receiver for recurring bill suggestions -->
+        <receiver
+            android:name=".service.notification.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.fino.app.CONFIRM_SUGGESTION" />
+                <action android:name="com.fino.app.DISMISS_SUGGESTION" />
+            </intent-filter>
+        </receiver>
+
         <!-- FileProvider for sharing exported files -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -58,6 +68,16 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Disable default WorkManager initialization so we can use HiltWorkerFactory -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="remove">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                tools:node="remove" />
         </provider>
 
     </application>

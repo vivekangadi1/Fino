@@ -39,6 +39,7 @@ data class CreateEventUiState(
     val startDate: LocalDate = LocalDate.now(),
     val hasEndDate: Boolean = false,
     val endDate: LocalDate = LocalDate.now().plusDays(7),
+    val excludeFromMainTotals: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val isLoading: Boolean = false,
@@ -92,6 +93,7 @@ class CreateEventViewModel @Inject constructor(
                             startDate = event.startDate,
                             hasEndDate = event.endDate != null,
                             endDate = event.endDate ?: LocalDate.now().plusDays(7),
+                            excludeFromMainTotals = event.excludeFromMainTotals,
                             isLoading = false
                         )
                     }
@@ -211,6 +213,13 @@ class CreateEventViewModel @Inject constructor(
     }
 
     /**
+     * Toggle exclude from main totals
+     */
+    fun setExcludeFromMainTotals(exclude: Boolean) {
+        _uiState.update { it.copy(excludeFromMainTotals = exclude) }
+    }
+
+    /**
      * Save the event (create new or update existing)
      */
     fun saveEvent() {
@@ -264,6 +273,7 @@ class CreateEventViewModel @Inject constructor(
                             alertAt100 = if (state.hasBudget) state.alertAt100 else true,
                             startDate = state.startDate,
                             endDate = if (state.hasEndDate) state.endDate else null,
+                            excludeFromMainTotals = state.excludeFromMainTotals,
                             updatedAt = LocalDateTime.now()
                         )
                         eventRepository.update(updatedEvent)
@@ -283,6 +293,7 @@ class CreateEventViewModel @Inject constructor(
                         endDate = if (state.hasEndDate) state.endDate else null,
                         status = EventStatus.ACTIVE,
                         isActive = true,
+                        excludeFromMainTotals = state.excludeFromMainTotals,
                         createdAt = LocalDateTime.now(),
                         updatedAt = LocalDateTime.now()
                     )

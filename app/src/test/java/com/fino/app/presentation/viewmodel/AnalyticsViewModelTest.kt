@@ -34,6 +34,7 @@ class AnalyticsViewModelTest {
     private lateinit var mockCategoryRepository: CategoryRepository
     private lateinit var mockBudgetRepository: BudgetRepository
     private lateinit var mockExportService: com.fino.app.service.export.ExportService
+    private lateinit var mockForecastService: com.fino.app.service.forecast.ForecastService
     private lateinit var viewModel: AnalyticsViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -90,6 +91,7 @@ class AnalyticsViewModelTest {
         mockCategoryRepository = mock()
         mockBudgetRepository = mock()
         mockExportService = mock()
+        mockForecastService = mock()
 
         whenever(mockTransactionRepository.getAllTransactionsFlow()).thenReturn(flowOf(testTransactions))
         whenever(mockCategoryRepository.getAllActive()).thenReturn(flowOf(testCategories))
@@ -110,7 +112,8 @@ class AnalyticsViewModelTest {
             transactionRepository = mockTransactionRepository,
             categoryRepository = mockCategoryRepository,
             budgetRepository = mockBudgetRepository,
-            exportService = mockExportService
+            exportService = mockExportService,
+            forecastService = mockForecastService
         )
     }
 

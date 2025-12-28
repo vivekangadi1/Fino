@@ -25,6 +25,8 @@ import com.fino.app.domain.model.calculatePercentageChange
 import com.fino.app.domain.model.calculateYearOverYearComparison
 import com.fino.app.domain.model.determineTrendDirection
 import com.fino.app.service.export.ExportService
+import com.fino.app.service.forecast.BudgetForecast
+import com.fino.app.service.forecast.ForecastService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,6 +85,7 @@ data class AnalyticsUiState(
     val yearOverYearComparison: YearOverYearComparison? = null,
     val paymentMethodTrend: PaymentMethodTrend? = null,
     val spendingHeatmapData: List<com.fino.app.presentation.components.MonthSpendingData> = emptyList(),
+    val budgetForecast: BudgetForecast? = null,
     val isLoading: Boolean = true
 )
 
@@ -91,7 +94,8 @@ class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val budgetRepository: BudgetRepository,
-    private val exportService: ExportService
+    private val exportService: ExportService,
+    private val forecastService: ForecastService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AnalyticsUiState())
@@ -700,6 +704,25 @@ class AnalyticsViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(paymentMethodTrend = paymentMethodTrend)
+        }
+    }
+
+    /**
+     * Load budget forecast data
+     */
+    suspend fun loadBudgetForecast() {
+        val categoryNamesMap = mutableMapOf<Long, Pair<String, String>>()
+        categoryRepository.getAllActive().collect { categories ->
+            categories.forEach { categoryNamesMap[it.id] = Pair(it.name, it.emoji) }
+        }
+
+        val forecast = forecastService.calculateForecast(
+            transactions = allTransactions,
+            categoryNames = categoryNamesMap
+        )
+
+        _uiState.update {
+            it.copy(budgetForecast = forecast)
         }
     }
 

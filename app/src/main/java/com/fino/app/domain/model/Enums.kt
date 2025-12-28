@@ -23,6 +23,7 @@ enum class TransactionSource {
  * Frequency for recurring transactions
  */
 enum class RecurringFrequency {
+    ONE_TIME,  // Non-recurring, single occurrence
     WEEKLY,
     MONTHLY,
     YEARLY

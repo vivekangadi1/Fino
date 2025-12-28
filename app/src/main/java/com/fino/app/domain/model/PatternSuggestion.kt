@@ -7,6 +7,7 @@ import java.time.LocalDate
  * that can be suggested to the user as a potential recurring bill
  */
 data class PatternSuggestion(
+    val id: Long = 0,  // Database ID (0 for unsaved suggestions)
     val merchantPattern: String,
     val displayName: String,
     val averageAmount: Double,

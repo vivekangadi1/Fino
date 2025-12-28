@@ -2,7 +2,10 @@ package com.fino.app.data.local.database
 
 import androidx.room.TypeConverter
 import com.fino.app.domain.model.AchievementType
+import com.fino.app.domain.model.EMIStatus
 import com.fino.app.domain.model.EventStatus
+import com.fino.app.domain.model.LoanStatus
+import com.fino.app.domain.model.LoanType
 import com.fino.app.domain.model.PaymentStatus
 import com.fino.app.domain.model.RecurringFrequency
 import com.fino.app.domain.model.TransactionSource
@@ -51,4 +54,25 @@ class Converters {
 
     @TypeConverter
     fun toPaymentStatus(value: String): PaymentStatus = PaymentStatus.valueOf(value)
+
+    // EMIStatus
+    @TypeConverter
+    fun fromEMIStatus(status: EMIStatus): String = status.name
+
+    @TypeConverter
+    fun toEMIStatus(value: String): EMIStatus = EMIStatus.valueOf(value)
+
+    // LoanStatus
+    @TypeConverter
+    fun fromLoanStatus(status: LoanStatus): String = status.name
+
+    @TypeConverter
+    fun toLoanStatus(value: String): LoanStatus = LoanStatus.valueOf(value)
+
+    // LoanType
+    @TypeConverter
+    fun fromLoanType(type: LoanType): String = type.name
+
+    @TypeConverter
+    fun toLoanType(value: String): LoanType = LoanType.valueOf(value)
 }

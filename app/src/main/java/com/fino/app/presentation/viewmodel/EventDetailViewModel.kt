@@ -193,12 +193,24 @@ class EventDetailViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 eventSubCategoryRepository.getByEventIdFlow(eventId),
-                transactionRepository.getTransactionsForEventFlow(eventId)
-            ) { subCategories, _ ->
-                subCategories  // transactions triggers recalculation but value not needed
-            }.collect { subCategories ->
+                transactionRepository.getTransactionsForEventFlow(eventId),
+                eventRepository.getByIdFlow(eventId)
+            ) { subCategories, _, event ->
+                Pair(subCategories, event)
+            }.collect { (subCategories, event) ->
                 val subCategoryNames = subCategories.associate { it.id to it.name }
-                _uiState.update { it.copy(subCategoryNames = subCategoryNames) }
+
+                // Calculate total budget from sub-categories (reactive to changes)
+                val subCategoryBudget = subCategories.mapNotNull { it.budgetAmount }.sum()
+                val eventBudget = event?.budgetAmount ?: 0.0
+                val totalBudget = if (subCategoryBudget > 0) subCategoryBudget else eventBudget
+
+                _uiState.update {
+                    it.copy(
+                        subCategoryNames = subCategoryNames,
+                        totalBudget = totalBudget
+                    )
+                }
                 // Recalculate summaries whenever sub-categories OR transactions change
                 calculateSubCategorySummaries(subCategories)
             }
@@ -213,7 +225,16 @@ class EventDetailViewModel @Inject constructor(
                 vendors  // transactions triggers recalculation but value not needed
             }.collect { vendors ->
                 val vendorNames = vendors.associate { it.id to it.name }
-                _uiState.update { it.copy(vendorNames = vendorNames) }
+
+                // Calculate total quoted from vendors (reactive to changes)
+                val totalQuoted = vendors.mapNotNull { it.quotedAmount }.sum()
+
+                _uiState.update {
+                    it.copy(
+                        vendorNames = vendorNames,
+                        totalQuoted = totalQuoted
+                    )
+                }
                 // Recalculate summaries whenever vendors OR transactions change
                 calculateVendorSummaries(vendors)
             }
@@ -247,20 +268,8 @@ class EventDetailViewModel @Inject constructor(
             }
         }
 
-        // Load total budget (sum of sub-category budgets + event budget)
-        viewModelScope.launch {
-            val subCategoryBudget = eventSubCategoryRepository.getTotalBudgetByEventId(eventId)
-            val vendorQuoted = eventVendorRepository.getTotalQuotedByEventId(eventId)
-            val event = eventRepository.getById(eventId)
-            val eventBudget = event?.budgetAmount ?: 0.0
-
-            _uiState.update {
-                it.copy(
-                    totalBudget = if (subCategoryBudget > 0) subCategoryBudget else eventBudget,
-                    totalQuoted = vendorQuoted
-                )
-            }
-        }
+        // Note: totalBudget is now calculated reactively in sub-categories flow
+        // Note: totalQuoted is now calculated reactively in vendors flow
     }
 
     /**

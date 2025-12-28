@@ -50,15 +50,15 @@ enum class BillStatus {
     DUE_TODAY,      // Due today
     DUE_TOMORROW,   // Due tomorrow
     DUE_THIS_WEEK,  // Due within 7 days (excluding today/tomorrow)
-    UPCOMING;       // Due later this month or next
+    UPCOMING,       // Due later this month or next
+    PAID;           // Bill has been paid
 
     companion object {
         /**
          * Calculate bill status based on due date and payment status
          */
         fun calculateStatus(dueDate: LocalDate, isPaid: Boolean): BillStatus {
-            // Paid bills are always shown as UPCOMING (completed)
-            if (isPaid) return UPCOMING
+            if (isPaid) return PAID
 
             val today = LocalDate.now()
             val daysUntilDue = ChronoUnit.DAYS.between(today, dueDate)

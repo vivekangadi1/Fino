@@ -31,6 +31,9 @@ fun CardsScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
     onNavigateToRewards: () -> Unit,
+    onAddCard: () -> Unit = {},
+    onEditCard: (Long) -> Unit = {},
+    onNavigateToEMITracker: () -> Unit = {},
     viewModel: CardsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -45,7 +48,7 @@ fun CardsScreen(
                     .size(56.dp)
                     .clip(CircleShape)
                     .background(FinoGradients.Primary)
-                    .clickable { },
+                    .clickable { onAddCard() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -91,9 +94,81 @@ fun CardsScreen(
                 )
             }
 
+            // EMI Tracker Link
+            item {
+                EMITrackerSection(onNavigateToEMITracker = onNavigateToEMITracker)
+            }
+
             // Tips Section
             item {
                 CardsTipsSection()
+            }
+        }
+    }
+}
+
+@Composable
+private fun EMITrackerSection(onNavigateToEMITracker: () -> Unit) {
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        SlideInCard(delay = 250) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Secondary.copy(alpha = 0.2f),
+                                Primary.copy(alpha = 0.1f)
+                            )
+                        )
+                    )
+                    .clickable(onClick = onNavigateToEMITracker)
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Primary.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "EMI & Loan Tracker",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Track your EMIs and loans in one place",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = TextSecondary
+                    )
+                }
             }
         }
     }

@@ -62,11 +62,13 @@ class UpcomingBillsRepository @Inject constructor(
             bills.add(mapRecurringRuleToBill(rule))
         }
 
-        // Get credit card bills
-        val daysDiff = ChronoUnit.DAYS.between(startDate, endDate).toInt()
-        val ccBills = creditCardRepository.getUpcomingBills(daysDiff)
-        ccBills.filter { it.dueDate in startDate..endDate }.forEach { ccBill ->
-            bills.add(mapCreditCardBillToBill(ccBill))
+        // Get credit card bills - use getActiveCards() to include the card ID
+        val cards = creditCardRepository.getActiveCards()
+        cards.filter { card ->
+            val dueDate = card.effectiveDueDate
+            card.effectiveDueAmount > 0 && dueDate != null && dueDate in startDate..endDate
+        }.forEach { card ->
+            bills.add(mapCreditCardToBill(card))
         }
 
         // Get pattern suggestions (filtered by date range and excluding merchants with rules)
@@ -188,15 +190,24 @@ class UpcomingBillsRepository @Inject constructor(
     /**
      * Mark a bill as paid.
      * Only affects recurring rules - updates occurrence tracking.
+     * For ONE_TIME bills, deactivates the rule instead of calculating next date.
      */
     suspend fun markBillAsPaid(bill: UpcomingBill, transactionId: Long?) {
         if (bill.source != BillSource.RECURRING_RULE) return
 
         val today = LocalDate.now()
+
+        // For ONE_TIME bills, deactivate instead of calculating next date
+        if (bill.frequency == RecurringFrequency.ONE_TIME) {
+            recurringRuleRepository.deactivate(bill.sourceId)
+            return
+        }
+
         val nextDate = when (bill.frequency) {
             RecurringFrequency.WEEKLY -> today.plusWeeks(1)
             RecurringFrequency.MONTHLY -> today.plusMonths(1)
             RecurringFrequency.YEARLY -> today.plusYears(1)
+            RecurringFrequency.ONE_TIME -> today // Won't reach here
             null -> today.plusMonths(1)
         }
 
@@ -240,46 +251,24 @@ class UpcomingBillsRepository @Inject constructor(
      * Convert a CreditCard to an UpcomingBill
      */
     fun mapCreditCardToBill(card: CreditCard): UpcomingBill {
-        val dueDate = card.previousDueDate ?: LocalDate.now()
+        val dueDate = card.effectiveDueDate ?: card.previousDueDate ?: LocalDate.now()
+        val amount = card.effectiveDueAmount
         return UpcomingBill(
             id = UpcomingBill.generateBillId(BillSource.CREDIT_CARD, card.id),
             source = BillSource.CREDIT_CARD,
             merchantName = "${card.bankName} Credit Card",
             displayName = "${card.bankName} Credit Card",
-            amount = card.previousDue,
+            amount = amount,
             amountVariance = null,
             dueDate = dueDate,
             frequency = null,
             categoryId = null,
-            status = BillStatus.calculateStatus(dueDate, false),
-            isPaid = false,
+            status = if (card.isPaid) BillStatus.PAID else BillStatus.calculateStatus(dueDate, false),
+            isPaid = card.isPaid,
             isUserConfirmed = true,
             confidence = 1.0f,
             creditCardLastFour = card.lastFourDigits,
             sourceId = card.id
-        )
-    }
-
-    /**
-     * Convert a CreditCardBill to an UpcomingBill
-     */
-    private fun mapCreditCardBillToBill(ccBill: CreditCardBill): UpcomingBill {
-        return UpcomingBill(
-            id = "CREDIT_CARD_${ccBill.cardLastFour}",
-            source = BillSource.CREDIT_CARD,
-            merchantName = "${ccBill.bankName ?: "Credit"} Card",
-            displayName = "${ccBill.bankName ?: "Credit"} Card ****${ccBill.cardLastFour}",
-            amount = ccBill.totalDue,
-            amountVariance = null,
-            dueDate = ccBill.dueDate,
-            frequency = null,
-            categoryId = null,
-            status = BillStatus.calculateStatus(ccBill.dueDate, false),
-            isPaid = false,
-            isUserConfirmed = true,
-            confidence = 1.0f,
-            creditCardLastFour = ccBill.cardLastFour,
-            sourceId = 0L // CreditCardBill doesn't have an ID
         )
     }
 

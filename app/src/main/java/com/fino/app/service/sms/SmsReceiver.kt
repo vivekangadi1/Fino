@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
+import com.fino.app.data.repository.PatternSuggestionRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionSource
 import com.fino.app.service.categorization.SmartCategorizationService
 import com.fino.app.service.notification.NotificationService
+import com.fino.app.service.parser.ParsedTransaction
 import com.fino.app.service.parser.SmsParser
 import com.fino.app.util.MerchantNormalizer
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,6 +40,9 @@ class SmsReceiver : BroadcastReceiver() {
     @Inject
     lateinit var smartCategorizationService: SmartCategorizationService
 
+    @Inject
+    lateinit var patternSuggestionRepository: PatternSuggestionRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
@@ -45,10 +50,17 @@ class SmsReceiver : BroadcastReceiver() {
 
         // Bank sender IDs that we care about
         private val BANK_SENDERS = listOf(
-            "HDFCBK", "SBIINB", "ICICIB", "AXISBK", "KOTAKB",
-            "SBICARD", "ILOANS", "PAYTM", "GPAY", "PHONEP", "AMAZON",
+            // Banks
+            "HDFCBK", "SBIINB", "ICICIB", "ICICIT", "AXISBK", "KOTAKB",
+            "SBICARD", "ILOANS", "BOBTXN",
+            // Payment apps
+            "PAYTM", "GPAY", "PHONEP", "AMAZON",
+            // Food & Transport
             "SWIGGY", "ZOMATO", "UBER", "OLA", "CRED",
-            "AIRINDIA", "INDIGO", "SPICEJET"
+            // Travel
+            "AIRINDIA", "INDIGO", "SPICEJET",
+            // Subscription services
+            "JIOHTT", "SPOTIFY", "NETFLIX", "HOTSTAR", "DISNEY", "GOOGLE"
         )
     }
 
@@ -136,6 +148,11 @@ class SmsReceiver : BroadcastReceiver() {
                         // Show notification
                         notificationService.showTransactionNotification(transaction)
 
+                        // If this is a subscription, create a suggestion for recurring bill
+                        if (parsedTransaction.isLikelySubscription) {
+                            createRecurringSuggestion(parsedTransaction, categoryId)
+                        }
+
                     } catch (e: Exception) {
                         Log.e(TAG, "Error saving transaction", e)
                     }
@@ -143,6 +160,30 @@ class SmsReceiver : BroadcastReceiver() {
             } else {
                 Log.d(TAG, "Could not parse transaction from SMS")
             }
+        }
+    }
+
+    /**
+     * Creates a recurring bill suggestion for subscription transactions.
+     */
+    private suspend fun createRecurringSuggestion(
+        parsedTransaction: ParsedTransaction,
+        categoryId: Long?
+    ) {
+        try {
+            val suggestion = patternSuggestionRepository.createFromSubscriptionSms(
+                parsedTransaction,
+                categoryId
+            )
+
+            if (suggestion != null) {
+                Log.d(TAG, "Created recurring bill suggestion for: ${parsedTransaction.merchantName}")
+                notificationService.showRecurringSuggestionNotification(suggestion)
+            } else {
+                Log.d(TAG, "Subscription already tracked: ${parsedTransaction.merchantName}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating recurring suggestion", e)
         }
     }
 

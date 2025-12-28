@@ -226,6 +226,18 @@ fun CreateEventScreen(
                 }
             }
 
+            // Exclude from Main Totals Toggle
+            item {
+                SlideInCard(delay = 350) {
+                    FormSection(title = "Expense Tracking") {
+                        ExcludeFromMainTotalsToggle(
+                            excludeFromMainTotals = uiState.excludeFromMainTotals,
+                            onToggle = { viewModel.setExcludeFromMainTotals(it) }
+                        )
+                    }
+                }
+            }
+
             // Save Button
             item {
                 Box(
@@ -712,5 +724,63 @@ private fun DatePickerDialog(
                 navigationContentColor = TextPrimary
             )
         )
+    }
+}
+
+@Composable
+private fun ExcludeFromMainTotalsToggle(
+    excludeFromMainTotals: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(DarkSurfaceVariant)
+                .clickable { onToggle(!excludeFromMainTotals) }
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Exclude from Main Totals",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Event expenses won't count towards your monthly spending",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Switch(
+                checked = excludeFromMainTotals,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = TextPrimary,
+                    checkedTrackColor = Primary,
+                    uncheckedThumbColor = TextTertiary,
+                    uncheckedTrackColor = DarkSurfaceHigh
+                )
+            )
+        }
+
+        if (excludeFromMainTotals) {
+            Text(
+                text = "💡 These expenses will show in a separate \"Event Expenses\" section in Analytics",
+                style = MaterialTheme.typography.bodySmall,
+                color = Info,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
     }
 }

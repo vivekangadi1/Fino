@@ -37,6 +37,9 @@ import java.util.Locale
 fun UpcomingBillsScreen(
     onNavigateBack: () -> Unit,
     onAddBill: () -> Unit,
+    onEditBill: (Long) -> Unit = {},
+    onEditCreditCardBill: (Long) -> Unit = {},
+    onScanPatterns: () -> Unit = {},
     viewModel: UpcomingBillsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,6 +65,13 @@ fun UpcomingBillsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onScanPatterns) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Detect Patterns",
+                            tint = Primary
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleCalendarView() }) {
                         Icon(
                             imageVector = if (uiState.showCalendarView)
@@ -144,23 +154,44 @@ fun UpcomingBillsScreen(
                     }
                 }
 
-                // Grouped bills
-                uiState.groupedBills.forEach { group ->
+                // Enhanced grouped bills with category subgroups
+                uiState.enhancedGroups.forEach { enhancedGroup ->
                     item {
-                        Text(
-                            text = group.label,
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 8.dp)
+                        ExpandableGroupHeader(
+                            label = enhancedGroup.label,
+                            billCount = enhancedGroup.billCount,
+                            totalAmount = enhancedGroup.totalAmount,
+                            isExpanded = enhancedGroup.isExpanded,
+                            hasUrgentBills = enhancedGroup.allBills.any {
+                                it.status == BillStatus.OVERDUE || it.status == BillStatus.DUE_TODAY
+                            },
+                            onToggle = { viewModel.toggleGroupExpansion(enhancedGroup.type) }
                         )
                     }
 
-                    items(group.bills) { bill ->
-                        UpcomingBillCardLarge(
-                            bill = bill,
-                            onMarkPaid = { viewModel.markBillAsPaid(bill) }
-                        )
+                    if (enhancedGroup.isExpanded) {
+                        enhancedGroup.categoryGroups.forEach { categoryGroup ->
+                            item {
+                                CategoryGroupHeader(
+                                    category = categoryGroup.category,
+                                    billCount = categoryGroup.billCount
+                                )
+                            }
+
+                            items(categoryGroup.bills) { bill ->
+                                UpcomingBillCardLarge(
+                                    bill = bill,
+                                    onMarkPaid = { viewModel.markBillAsPaid(bill) },
+                                    onClick = {
+                                        when (bill.source) {
+                                            BillSource.RECURRING_RULE -> onEditBill(bill.sourceId)
+                                            BillSource.CREDIT_CARD -> onEditCreditCardBill(bill.sourceId)
+                                            else -> {} // Pattern suggestions handled separately
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -464,6 +495,7 @@ private fun CalendarDayCell(
 private fun UpcomingBillCardLarge(
     bill: UpcomingBill,
     onMarkPaid: () -> Unit,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
@@ -475,10 +507,13 @@ private fun UpcomingBillCardLarge(
         BillStatus.DUE_TOMORROW -> Warning.copy(alpha = 0.8f)
         BillStatus.DUE_THIS_WEEK -> Info
         BillStatus.UPCOMING -> TextSecondary
+        BillStatus.PAID -> IncomeGreen
     }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
     ) {
@@ -542,6 +577,101 @@ private fun UpcomingBillCardLarge(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ExpandableGroupHeader(
+    label: String,
+    billCount: Int,
+    totalAmount: Double,
+    isExpanded: Boolean,
+    hasUrgentBills: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onToggle() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasUrgentBills) ExpenseRed.copy(alpha = 0.1f) else DarkSurface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Expand/collapse icon
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = if (hasUrgentBills) ExpenseRed else TextSecondary,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Label and count
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    color = if (hasUrgentBills) ExpenseRed else TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "$billCount ${if (billCount == 1) "bill" else "bills"}",
+                    color = TextTertiary,
+                    fontSize = 12.sp
+                )
+            }
+
+            // Total amount
+            Text(
+                text = currencyFormatter.format(totalAmount),
+                color = if (hasUrgentBills) ExpenseRed else TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryGroupHeader(
+    category: BillCategoryType,
+    billCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = category.emoji,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = category.displayLabel,
+            color = TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "($billCount)",
+            color = TextTertiary,
+            fontSize = 12.sp
+        )
     }
 }
 

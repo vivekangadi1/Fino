@@ -101,6 +101,26 @@ class RecurringRuleRepository @Inject constructor(
         return dao.getActiveRuleCount()
     }
 
+    /**
+     * Deactivate a recurring rule (soft delete)
+     * Used for one-time bills after they're paid, or when user wants to stop tracking
+     */
+    suspend fun deactivate(id: Long) {
+        dao.deactivate(id)
+    }
+
+    /**
+     * Get active rules with next expected date falling within the given month
+     */
+    suspend fun getActiveRulesWithNextExpected(month: java.time.YearMonth): List<RecurringRule> {
+        val startDate = month.atDay(1)
+        val endDate = month.atEndOfMonth()
+        return dao.getUpcomingRules(
+            startDate.toEpochMillis(),
+            endDate.toEpochMillis()
+        ).map { it.toDomain() }
+    }
+
     // ==================== Mapping Functions ====================
 
     /**

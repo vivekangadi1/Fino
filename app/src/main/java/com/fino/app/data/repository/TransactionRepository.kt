@@ -198,6 +198,17 @@ class TransactionRepository @Inject constructor(
         return dao.getEventSpendingByPayer(eventId, payer) ?: 0.0
     }
 
+    suspend fun getByMerchant(merchantName: String): List<Transaction> {
+        return dao.getByMerchant("%$merchantName%").map { it.toDomain() }
+    }
+
+    /**
+     * Categorize all transactions from a given merchant and return count updated
+     */
+    suspend fun categorizeByMerchant(merchantName: String, categoryId: Long): Int {
+        return dao.categorizeByMerchant(merchantName, categoryId)
+    }
+
     private fun TransactionEntity.toDomain(): Transaction {
         return Transaction(
             id = id,

@@ -41,6 +41,8 @@ import com.fino.app.presentation.components.*
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.AddTransactionViewModel
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -139,6 +141,12 @@ fun AddTransactionScreen(
                         onMerchantChange = { viewModel.setMerchant(it) }
                     )
                 }
+
+                // Transaction Date Section
+                TransactionDateSection(
+                    transactionDate = uiState.transactionDate,
+                    onDateTimeChange = { viewModel.setTransactionDate(it) }
+                )
 
                 // Event Expense Fields (shown only when adding to an event)
                 if (uiState.isEventExpense) {
@@ -484,6 +492,208 @@ private fun MerchantSection(
                 }
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransactionDateSection(
+    transactionDate: LocalDateTime,
+    onDateTimeChange: (LocalDateTime) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
+    val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+
+    Column(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "Date & Time",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Date Picker Button
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkSurfaceVariant)
+                    .clickable { showDatePicker = true }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Date",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = transactionDate.format(dateFormatter),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPrimary
+                    )
+                }
+                Icon(
+                    Icons.Default.CalendarToday,
+                    contentDescription = "Select date",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Time Picker Button
+            Row(
+                modifier = Modifier
+                    .weight(0.7f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkSurfaceVariant)
+                    .clickable { showTimePicker = true }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Time",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = transactionDate.format(timeFormatter),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPrimary
+                    )
+                }
+                Icon(
+                    Icons.Default.Schedule,
+                    contentDescription = "Select time",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    // Date Picker Dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = transactionDate.toLocalDate().toEpochDay() * 86400000L
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val newDate = LocalDate.ofEpochDay(millis / 86400000L)
+                            onDateTimeChange(LocalDateTime.of(newDate, transactionDate.toLocalTime()))
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK", color = Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = DarkSurface
+            )
+        ) {
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = DarkSurface,
+                    titleContentColor = TextPrimary,
+                    headlineContentColor = TextPrimary,
+                    weekdayContentColor = TextSecondary,
+                    dayContentColor = TextPrimary,
+                    selectedDayContainerColor = Primary,
+                    selectedDayContentColor = TextPrimary,
+                    todayContentColor = Primary,
+                    todayDateBorderColor = Primary
+                )
+            )
+        }
+    }
+
+    // Time Picker Dialog
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = transactionDate.hour,
+            initialMinute = transactionDate.minute,
+            is24Hour = false
+        )
+
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = {
+                Text(
+                    text = "Select Time",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TimePicker(
+                        state = timePickerState,
+                        colors = TimePickerDefaults.colors(
+                            clockDialColor = DarkSurfaceVariant,
+                            clockDialSelectedContentColor = TextPrimary,
+                            clockDialUnselectedContentColor = TextSecondary,
+                            selectorColor = Primary,
+                            containerColor = DarkSurface,
+                            periodSelectorBorderColor = Primary,
+                            periodSelectorSelectedContainerColor = Primary,
+                            periodSelectorUnselectedContainerColor = DarkSurfaceVariant,
+                            periodSelectorSelectedContentColor = TextPrimary,
+                            periodSelectorUnselectedContentColor = TextSecondary,
+                            timeSelectorSelectedContainerColor = Primary,
+                            timeSelectorUnselectedContainerColor = DarkSurfaceVariant,
+                            timeSelectorSelectedContentColor = TextPrimary,
+                            timeSelectorUnselectedContentColor = TextSecondary
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        onDateTimeChange(LocalDateTime.of(transactionDate.toLocalDate(), newTime))
+                        showTimePicker = false
+                    }
+                ) {
+                    Text("OK", color = Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = DarkSurface
+        )
     }
 }
 

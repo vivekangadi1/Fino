@@ -4,6 +4,26 @@ import com.fino.app.domain.model.TransactionType
 import java.time.LocalDateTime
 
 /**
+ * Payment channel/method used for the transaction.
+ */
+enum class PaymentChannel {
+    UPI,
+    CREDIT_CARD,
+    DEBIT_CARD,
+    PREPAID_CARD,
+    FASTAG,
+    AUTOPAY,
+    STANDING_INSTRUCTION,
+    NEFT,
+    IMPS,
+    INSURANCE,
+    BANK_CHARGE,
+    INVESTMENT,
+    EMI,
+    UNKNOWN
+}
+
+/**
  * Result of parsing an SMS message.
  * Contains all extracted transaction details.
  */
@@ -17,7 +37,14 @@ data class ParsedTransaction(
     val bankName: String? = null,
     val accountLastFour: String? = null,
     val isLikelySubscription: Boolean = false,
-    val confidence: Float = 0.5f
+    val confidence: Float = 0.5f,
+    // New fields for enhanced parsing
+    val currency: String = "INR",
+    val paymentChannel: PaymentChannel = PaymentChannel.UNKNOWN,
+    val senderName: String? = null,  // For CREDIT transactions
+    val tollName: String? = null,    // For FASTag transactions
+    val vehicleNumber: String? = null, // For FASTag transactions
+    val isMandateRevocation: Boolean = false  // For AutoPay mandate revocations
 )
 
 /**

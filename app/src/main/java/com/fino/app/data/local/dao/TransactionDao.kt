@@ -158,4 +158,8 @@ interface TransactionDao {
 
     @Query("SELECT SUM(amount) FROM transactions WHERE type = 'DEBIT' AND eventId = :eventId AND paidBy = :payer")
     suspend fun getEventSpendingByPayer(eventId: Long, payer: String): Double?
+
+    // Bulk categorize by merchant name
+    @Query("UPDATE transactions SET categoryId = :categoryId, needsReview = 0 WHERE LOWER(merchantName) = LOWER(:merchantName)")
+    suspend fun categorizeByMerchant(merchantName: String, categoryId: Long): Int
 }

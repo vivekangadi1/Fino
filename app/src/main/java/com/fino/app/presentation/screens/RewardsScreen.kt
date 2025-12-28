@@ -37,6 +37,7 @@ fun RewardsScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToCards: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: RewardsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -44,6 +45,23 @@ fun RewardsScreen(
 
     Scaffold(
         containerColor = DarkBackground,
+        topBar = {
+            TopAppBar(
+                title = { },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = "Settings",
+                            tint = TextPrimary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkBackground
+                )
+            )
+        },
         bottomBar = {
             FinoBottomNavBar(
                 currentRoute = currentRoute,

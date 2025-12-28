@@ -42,6 +42,14 @@ class MerchantMappingRepository @Inject constructor(
         return dao.getHighConfidenceMappings(minConfidence).map { it.toDomain() }
     }
 
+    suspend fun deleteMapping(mapping: MerchantMapping) {
+        dao.delete(mapping.toEntity())
+    }
+
+    suspend fun deleteById(id: Long) {
+        dao.getById(id)?.let { dao.delete(it) }
+    }
+
     private fun MerchantMappingEntity.toDomain(): MerchantMapping {
         return MerchantMapping(
             id = id,

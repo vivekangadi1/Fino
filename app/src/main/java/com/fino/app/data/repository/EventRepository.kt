@@ -157,6 +157,7 @@ class EventRepository @Inject constructor(
             endDate = endDate?.let { DateUtils.toLocalDate(it) },
             status = status,
             isActive = isActive,
+            excludeFromMainTotals = excludeFromMainTotals,
             createdAt = DateUtils.fromEpochMillis(createdAt),
             updatedAt = DateUtils.fromEpochMillis(updatedAt)
         )
@@ -176,6 +177,7 @@ class EventRepository @Inject constructor(
             endDate = endDate?.let { DateUtils.toEpochMillis(it) },
             status = status,
             isActive = isActive,
+            excludeFromMainTotals = excludeFromMainTotals,
             createdAt = DateUtils.toEpochMillis(createdAt),
             updatedAt = DateUtils.toEpochMillis(updatedAt)
         )

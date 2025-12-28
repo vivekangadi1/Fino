@@ -33,8 +33,23 @@ data class CreditCard(
     val previousDueDate: LocalDate? = null,
     val minimumDue: Double? = null,
     val isActive: Boolean = true,
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    // Payment tracking
+    val isPaid: Boolean = false,
+    val paidDate: LocalDate? = null,
+    val paidAmount: Double? = null,
+    // User overrides for manual adjustments
+    val userAdjustedDue: Double? = null,
+    val userAdjustedDueDate: LocalDate? = null
+) {
+    /** Returns the effective due amount (user override or previous due) */
+    val effectiveDueAmount: Double
+        get() = userAdjustedDue ?: previousDue
+
+    /** Returns the effective due date (user override or previous due date) */
+    val effectiveDueDate: LocalDate?
+        get() = userAdjustedDueDate ?: previousDueDate
+}
 
 /**
  * Credit card bill information parsed from SMS.

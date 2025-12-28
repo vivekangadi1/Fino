@@ -28,6 +28,7 @@ import java.time.YearMonth
 class HomeViewModelTest {
 
     private lateinit var mockTransactionRepository: TransactionRepository
+    private lateinit var mockCategoryRepository: com.fino.app.data.repository.CategoryRepository
     private lateinit var mockUserStatsRepository: UserStatsRepository
     private lateinit var mockUpcomingBillsRepository: UpcomingBillsRepository
     private lateinit var mockEventRepository: EventRepository
@@ -164,12 +165,14 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         mockTransactionRepository = mock()
+        mockCategoryRepository = mock()
         mockUserStatsRepository = mock()
         mockUpcomingBillsRepository = mock()
         mockEventRepository = mock()
         levelCalculator = LevelCalculator()
 
         whenever(mockTransactionRepository.getAllTransactionsFlow()).thenReturn(flowOf(testTransactions))
+        whenever(mockCategoryRepository.getAllActive()).thenReturn(flowOf(emptyList()))
         whenever(mockUserStatsRepository.getUserStatsFlow()).thenReturn(flowOf(testUserStats))
         whenever(mockUpcomingBillsRepository.getUpcomingBillsFlow()).thenReturn(flowOf(testUpcomingBills))
         whenever(mockEventRepository.getEventSummariesFlow()).thenReturn(flowOf(emptyList()))
@@ -186,6 +189,7 @@ class HomeViewModelTest {
     private fun createViewModel(): HomeViewModel {
         return HomeViewModel(
             transactionRepository = mockTransactionRepository,
+            categoryRepository = mockCategoryRepository,
             userStatsRepository = mockUserStatsRepository,
             upcomingBillsRepository = mockUpcomingBillsRepository,
             eventRepository = mockEventRepository,

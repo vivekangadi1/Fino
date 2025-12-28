@@ -44,6 +44,7 @@ data class AddTransactionUiState(
     val selectedPaymentMethod: PaymentMethod? = null,
     val categories: List<Category> = emptyList(),
     val eventId: Long? = null,
+    val transactionDate: LocalDateTime = LocalDateTime.now(),
 
     // Event expense fields
     val isEventExpense: Boolean = false,
@@ -133,6 +134,7 @@ class AddTransactionViewModel @Inject constructor(
                             selectedCategoryId = transaction.categoryId,
                             transactionType = transaction.type,
                             selectedPaymentMethod = PaymentMethod.fromString(transaction.paymentMethod),
+                            transactionDate = transaction.transactionDate,
                             eventId = transaction.eventId ?: eventId,
                             isEventExpense = transaction.eventId != null || eventId != null,
                             selectedSubCategoryId = transaction.eventSubCategoryId,
@@ -302,6 +304,10 @@ class AddTransactionViewModel @Inject constructor(
         _uiState.update { it.copy(expenseNotes = notes) }
     }
 
+    fun setTransactionDate(dateTime: LocalDateTime) {
+        _uiState.update { it.copy(transactionDate = dateTime) }
+    }
+
     /**
      * Get vendors filtered by selected sub-category (or all if no sub-category selected)
      */
@@ -356,6 +362,7 @@ class AddTransactionViewModel @Inject constructor(
                         type = state.transactionType,
                         merchantName = merchantName,
                         categoryId = state.selectedCategoryId,
+                        transactionDate = state.transactionDate,
                         paymentMethod = state.selectedPaymentMethod?.value,
                         eventId = transactionEventId,
                         eventSubCategoryId = state.selectedSubCategoryId,
@@ -374,7 +381,7 @@ class AddTransactionViewModel @Inject constructor(
                         type = state.transactionType,
                         merchantName = merchantName,
                         categoryId = state.selectedCategoryId,
-                        transactionDate = LocalDateTime.now(),
+                        transactionDate = state.transactionDate,
                         source = TransactionSource.MANUAL,
                         needsReview = false,
                         parsedConfidence = 1.0f,

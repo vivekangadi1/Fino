@@ -1,6 +1,10 @@
 package com.fino.app.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import com.fino.app.data.repository.CategoryRepository
+import com.fino.app.data.repository.EventSubCategoryRepository
+import com.fino.app.data.repository.EventVendorRepository
+import com.fino.app.data.repository.FamilyMemberRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.data.repository.UserStatsRepository
 import com.fino.app.domain.model.Category
@@ -28,11 +32,15 @@ import java.time.LocalDate
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddTransactionViewModelTest {
 
+    private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var mockTransactionRepository: TransactionRepository
     private lateinit var mockCategoryRepository: CategoryRepository
     private lateinit var mockUserStatsRepository: UserStatsRepository
     private lateinit var mockStreakTracker: StreakTracker
     private lateinit var xpCalculator: XpCalculator
+    private lateinit var mockEventSubCategoryRepository: EventSubCategoryRepository
+    private lateinit var mockEventVendorRepository: EventVendorRepository
+    private lateinit var mockFamilyMemberRepository: FamilyMemberRepository
     private lateinit var viewModel: AddTransactionViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -46,20 +54,28 @@ class AddTransactionViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        savedStateHandle = SavedStateHandle()
         mockTransactionRepository = mock()
         mockCategoryRepository = mock()
         mockUserStatsRepository = mock()
         mockStreakTracker = mock()
         xpCalculator = XpCalculator()
+        mockEventSubCategoryRepository = mock()
+        mockEventVendorRepository = mock()
+        mockFamilyMemberRepository = mock()
 
         whenever(mockCategoryRepository.getAllActive()).thenReturn(flowOf(testCategories))
 
         viewModel = AddTransactionViewModel(
+            savedStateHandle = savedStateHandle,
             transactionRepository = mockTransactionRepository,
             categoryRepository = mockCategoryRepository,
             userStatsRepository = mockUserStatsRepository,
             streakTracker = mockStreakTracker,
-            xpCalculator = xpCalculator
+            xpCalculator = xpCalculator,
+            eventSubCategoryRepository = mockEventSubCategoryRepository,
+            eventVendorRepository = mockEventVendorRepository,
+            familyMemberRepository = mockFamilyMemberRepository
         )
     }
 

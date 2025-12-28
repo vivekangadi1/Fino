@@ -59,6 +59,36 @@ class CreditCardBillParser {
                 RegexOption.IGNORE_CASE
             ),
             confidence = 0.95f
+        ),
+
+        // Axis: "Payment of INR 15236.36 for Axis Bank Credit Card no. XX5519 is due on 01-01-26 with minimum amount due of INR 305."
+        ParsePattern(
+            name = "AXIS_BILL",
+            regex = Regex(
+                """Payment\s+of\s+INR\s+([0-9,]+\.?\d*)\s+for\s+Axis\s+Bank\s+Credit\s+Card\s+no\.\s+XX(\d{4})\s+is\s+due\s+on\s+(\d{2}-\d{2}-\d{2,4})\s+with\s+minimum\s+amount\s+due\s+of\s+INR\s+([0-9,]+\.?\d*)""",
+                RegexOption.IGNORE_CASE
+            ),
+            confidence = 0.95f
+        ),
+
+        // ICICI Statement Email: "ICICI Bank Credit Card XX1016 Statement is sent to email. Total of Rs 1,504.00 or minimum of Rs 100.00 is due by 05-JAN-26."
+        ParsePattern(
+            name = "ICICI_STATEMENT_EMAIL",
+            regex = Regex(
+                """ICICI\s+Bank\s+Credit\s+Card\s+XX(\d{4})\s+Statement\s+is\s+sent\s+to\s+\S+\.\s+Total\s+of\s+Rs\s+([0-9,]+\.?\d*)\s+or\s+minimum\s+of\s+Rs\s+([0-9,]+\.?\d*)\s+is\s+due\s+by\s+(\d{2}-\w{3}-\d{2,4})""",
+                RegexOption.IGNORE_CASE
+            ),
+            confidence = 0.95f
+        ),
+
+        // ICICI Auto-debit: "Total Amount Due on ICICI Bank Credit Card XX2000 is INR 2,218.42. Amount will be debited...on or before 29-Dec-25."
+        ParsePattern(
+            name = "ICICI_AUTODEBIT_BILL",
+            regex = Regex(
+                """Total\s+Amount\s+Due\s+on\s+ICICI\s+Bank\s+Credit\s+Card\s+XX(\d{4})\s+is\s+INR\s+([0-9,]+\.?\d*).*?on\s+or\s+before\s+(\d{2}-\w{3}-\d{2,4})""",
+                RegexOption.IGNORE_CASE
+            ),
+            confidence = 0.95f
         )
     )
 
@@ -106,11 +136,41 @@ class CreditCardBillParser {
                 dueDate = parseBillDate(match.groupValues[4])
             )
 
+            // Axis: Payment of INR X for Axis Bank Credit Card no. XX5519 is due on DD-MM-YY with minimum amount due of INR Y
+            "AXIS_BILL" -> ParsedBill(
+                cardLastFour = match.groupValues[2],
+                bankName = "AXIS",
+                totalDue = SmsParser.parseAmount(match.groupValues[1]),
+                minimumDue = SmsParser.parseAmount(match.groupValues[4]),
+                dueDate = parseBillDate(match.groupValues[3])
+            )
+
+            // ICICI Statement Email: Total of Rs X or minimum of Rs Y is due by DD-MMM-YY
+            "ICICI_STATEMENT_EMAIL" -> ParsedBill(
+                cardLastFour = match.groupValues[1],
+                bankName = "ICICI",
+                totalDue = SmsParser.parseAmount(match.groupValues[2]),
+                minimumDue = SmsParser.parseAmount(match.groupValues[3]),
+                dueDate = parseBillDate(match.groupValues[4])
+            )
+
+            // ICICI Auto-debit: Total Amount Due on ICICI Bank Credit Card XX2000 is INR X...on or before DD-MMM-YY
+            "ICICI_AUTODEBIT_BILL" -> ParsedBill(
+                cardLastFour = match.groupValues[1],
+                bankName = "ICICI",
+                totalDue = SmsParser.parseAmount(match.groupValues[2]),
+                minimumDue = null,  // Not provided in this format
+                dueDate = parseBillDate(match.groupValues[3])
+            )
+
             else -> throw IllegalArgumentException("Unknown pattern: ${pattern.name}")
         }
     }
 
     private fun parseBillDate(dateStr: String): LocalDate {
+        // Normalize the date string to handle uppercase months (e.g., "JAN" -> "Jan")
+        val normalizedDate = normalizeDateString(dateStr.trim())
+
         val patterns = listOf(
             "dd-MMM-yy",
             "dd-MMM-yyyy",
@@ -121,7 +181,7 @@ class CreditCardBillParser {
         for (pattern in patterns) {
             try {
                 val formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH)
-                return LocalDate.parse(dateStr.trim(), formatter)
+                return LocalDate.parse(normalizedDate, formatter)
             } catch (e: Exception) {
                 // Try next pattern
             }
@@ -129,5 +189,20 @@ class CreditCardBillParser {
 
         // Default to 30 days from now if parsing fails
         return LocalDate.now().plusDays(30)
+    }
+
+    /**
+     * Normalize date string to handle uppercase month abbreviations.
+     * Converts "05-JAN-26" to "05-Jan-26" for proper parsing.
+     */
+    private fun normalizeDateString(dateStr: String): String {
+        // Match patterns like "05-JAN-26" or "05-JANUARY-26"
+        val regex = Regex("""(\d{2})-([A-Za-z]+)-(\d{2,4})""")
+        return regex.replace(dateStr) { match ->
+            val day = match.groupValues[1]
+            val month = match.groupValues[2].lowercase().replaceFirstChar { it.uppercase() }
+            val year = match.groupValues[3]
+            "$day-$month-$year"
+        }
     }
 }

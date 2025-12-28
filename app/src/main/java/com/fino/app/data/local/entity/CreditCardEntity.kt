@@ -26,5 +26,12 @@ data class CreditCardEntity(
     val previousDueDate: Long? = null, // Epoch millis (LocalDate)
     val minimumDue: Double? = null,
     val isActive: Boolean = true,
-    val createdAt: Long  // Epoch millis
+    val createdAt: Long,  // Epoch millis
+    // Payment tracking fields
+    val isPaid: Boolean = false,
+    val paidDate: Long? = null,           // Epoch millis when paid
+    val paidAmount: Double? = null,       // Actual amount paid
+    // User override fields for manual adjustments
+    val userAdjustedDue: Double? = null,  // User-overridden due amount
+    val userAdjustedDueDate: Long? = null // User-overridden due date
 )

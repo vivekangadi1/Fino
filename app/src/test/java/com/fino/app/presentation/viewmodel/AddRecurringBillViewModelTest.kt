@@ -1,5 +1,6 @@
 package com.fino.app.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import com.fino.app.data.repository.CategoryRepository
 import com.fino.app.data.repository.RecurringRuleRepository
 import com.fino.app.domain.model.Category
@@ -19,6 +20,7 @@ import java.time.LocalDateTime
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddRecurringBillViewModelTest {
 
+    private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var recurringRuleRepository: RecurringRuleRepository
     private lateinit var categoryRepository: CategoryRepository
     private lateinit var viewModel: AddRecurringBillViewModel
@@ -28,6 +30,7 @@ class AddRecurringBillViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        savedStateHandle = SavedStateHandle()
         recurringRuleRepository = mock()
         categoryRepository = mock()
     }
@@ -38,7 +41,7 @@ class AddRecurringBillViewModelTest {
     }
 
     private fun createViewModel(): AddRecurringBillViewModel {
-        return AddRecurringBillViewModel(recurringRuleRepository, categoryRepository)
+        return AddRecurringBillViewModel(savedStateHandle, recurringRuleRepository, categoryRepository)
     }
 
     // ==================== Initial State Tests (2 tests) ====================

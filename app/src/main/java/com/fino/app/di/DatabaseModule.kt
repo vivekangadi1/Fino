@@ -19,6 +19,88 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add excludeFromMainTotals column to events table
+            db.execSQL("ALTER TABLE events ADD COLUMN excludeFromMainTotals INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create EMI table - schema must match EMIEntity exactly (no DEFAULT values, no indices)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS emis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    creditCardId INTEGER,
+                    description TEXT NOT NULL,
+                    merchantName TEXT,
+                    originalAmount REAL NOT NULL,
+                    monthlyAmount REAL NOT NULL,
+                    tenure INTEGER NOT NULL,
+                    paidCount INTEGER NOT NULL,
+                    startDate INTEGER NOT NULL,
+                    endDate INTEGER NOT NULL,
+                    nextDueDate INTEGER NOT NULL,
+                    interestRate REAL,
+                    processingFee REAL,
+                    status TEXT NOT NULL,
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL
+                )
+            """)
+
+            // Create Loans table - schema must match LoanEntity exactly (no DEFAULT values, no indices)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS loans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    type TEXT NOT NULL,
+                    bankName TEXT NOT NULL,
+                    accountNumber TEXT,
+                    description TEXT NOT NULL,
+                    principalAmount REAL NOT NULL,
+                    interestRate REAL NOT NULL,
+                    monthlyEMI REAL NOT NULL,
+                    tenure INTEGER NOT NULL,
+                    paidCount INTEGER NOT NULL,
+                    startDate INTEGER NOT NULL,
+                    endDate INTEGER NOT NULL,
+                    nextDueDate INTEGER NOT NULL,
+                    outstandingPrincipal REAL,
+                    status TEXT NOT NULL,
+                    notes TEXT,
+                    createdAt INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create pattern_suggestions table for automatic recurring bill detection
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS pattern_suggestions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    merchantPattern TEXT NOT NULL,
+                    displayName TEXT NOT NULL,
+                    averageAmount REAL NOT NULL,
+                    frequency TEXT NOT NULL,
+                    typicalDayOfPeriod INTEGER NOT NULL,
+                    occurrenceCount INTEGER NOT NULL,
+                    confidence REAL NOT NULL,
+                    nextExpected INTEGER NOT NULL,
+                    categoryId INTEGER,
+                    status TEXT NOT NULL DEFAULT 'PENDING',
+                    source TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    dismissedAt INTEGER
+                )
+            """)
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pattern_suggestions_merchantPattern ON pattern_suggestions(merchantPattern)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_pattern_suggestions_status ON pattern_suggestions(status)")
+        }
+    }
+
     private val MIGRATION_7_8 = object : Migration(7, 8) {
         override fun migrate(db: SupportSQLiteDatabase) {
             // Create event_sub_categories table
@@ -157,7 +239,7 @@ object DatabaseModule {
             FinoDatabase.DATABASE_NAME
         )
             .fallbackToDestructiveMigration()
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, FinoDatabase.MIGRATION_11_12)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -463,4 +545,13 @@ object DatabaseModule {
 
     @Provides
     fun provideFamilyMemberDao(database: FinoDatabase): FamilyMemberDao = database.familyMemberDao()
+
+    @Provides
+    fun provideEMIDao(database: FinoDatabase): EMIDao = database.emiDao()
+
+    @Provides
+    fun provideLoanDao(database: FinoDatabase): LoanDao = database.loanDao()
+
+    @Provides
+    fun providePatternSuggestionDao(database: FinoDatabase): PatternSuggestionDao = database.patternSuggestionDao()
 }

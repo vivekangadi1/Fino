@@ -36,4 +36,7 @@ interface RecurringRuleDao {
 
     @Query("SELECT COUNT(*) FROM recurring_rules WHERE isActive = 1")
     suspend fun getActiveRuleCount(): Int
+
+    @Query("UPDATE recurring_rules SET isActive = 0 WHERE id = :id")
+    suspend fun deactivate(id: Long)
 }
