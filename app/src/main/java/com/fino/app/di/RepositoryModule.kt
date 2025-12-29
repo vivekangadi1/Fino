@@ -75,13 +75,15 @@ object RepositoryModule {
         recurringRuleRepository: RecurringRuleRepository,
         creditCardRepository: CreditCardRepository,
         patternDetectionService: com.fino.app.service.pattern.PatternDetectionService,
-        transactionRepository: TransactionRepository
+        transactionRepository: TransactionRepository,
+        patternSuggestionRepository: PatternSuggestionRepository
     ): UpcomingBillsRepository {
         return UpcomingBillsRepository(
             recurringRuleRepository = recurringRuleRepository,
             creditCardRepository = creditCardRepository,
             patternDetectionService = patternDetectionService,
-            transactionRepository = transactionRepository
+            transactionRepository = transactionRepository,
+            patternSuggestionRepository = patternSuggestionRepository
         )
     }
 

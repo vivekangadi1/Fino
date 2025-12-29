@@ -19,6 +19,7 @@ class UpcomingBillsRepositoryTest {
     private lateinit var creditCardRepository: CreditCardRepository
     private lateinit var patternDetectionService: PatternDetectionService
     private lateinit var transactionRepository: TransactionRepository
+    private lateinit var patternSuggestionRepository: PatternSuggestionRepository
     private lateinit var repository: UpcomingBillsRepository
 
     @Before
@@ -27,11 +28,13 @@ class UpcomingBillsRepositoryTest {
         creditCardRepository = mock()
         patternDetectionService = mock()
         transactionRepository = mock()
+        patternSuggestionRepository = mock()
         repository = UpcomingBillsRepository(
             recurringRuleRepository,
             creditCardRepository,
             patternDetectionService,
-            transactionRepository
+            transactionRepository,
+            patternSuggestionRepository
         )
     }
 
@@ -116,8 +119,8 @@ class UpcomingBillsRepositoryTest {
         val endDate = LocalDate.now().plusDays(30)
         val rule = createRecurringRule(nextExpected = LocalDate.now().plusDays(15))
         whenever(recurringRuleRepository.getUpcomingRules(startDate, endDate)).thenReturn(listOf(rule))
-        whenever(creditCardRepository.getUpcomingBills(30)).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val bills = repository.getUpcomingBills(startDate, endDate)
 
@@ -131,8 +134,8 @@ class UpcomingBillsRepositoryTest {
         val endDate = LocalDate.now().plusDays(30)
         val suggestion = createPatternSuggestion(nextExpected = LocalDate.now().plusDays(10))
         whenever(recurringRuleRepository.getUpcomingRules(startDate, endDate)).thenReturn(emptyList())
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(listOf(suggestion))
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(listOf(suggestion))
 
         val bills = repository.getUpcomingBills(startDate, endDate)
 
@@ -146,8 +149,8 @@ class UpcomingBillsRepositoryTest {
         val endDate = LocalDate.now().plusDays(15)
         val suggestion = createPatternSuggestion(nextExpected = LocalDate.now().plusDays(30))
         whenever(recurringRuleRepository.getUpcomingRules(startDate, endDate)).thenReturn(emptyList())
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(listOf(suggestion))
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(listOf(suggestion))
 
         val bills = repository.getUpcomingBills(startDate, endDate)
 
@@ -162,8 +165,8 @@ class UpcomingBillsRepositoryTest {
         val rule = createRecurringRule(merchantPattern = "NETFLIX", nextExpected = LocalDate.now().plusDays(15))
         val suggestion = createPatternSuggestion(merchantPattern = "NETFLIX", nextExpected = LocalDate.now().plusDays(15))
         whenever(recurringRuleRepository.getUpcomingRules(startDate, endDate)).thenReturn(listOf(rule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(listOf(suggestion))
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(listOf(suggestion))
 
         val bills = repository.getUpcomingBills(startDate, endDate)
 
@@ -177,16 +180,16 @@ class UpcomingBillsRepositoryTest {
     fun `getUpcomingBills includes credit card bills in range`() = runTest {
         val startDate = LocalDate.now()
         val endDate = LocalDate.now().plusDays(30)
-        val ccBill = CreditCardBill(
-            cardLastFour = "1234",
+        val card = createCreditCard(
+            id = 1L,
             bankName = "HDFC",
-            totalDue = 12500.0,
-            minimumDue = 1250.0,
-            dueDate = LocalDate.now().plusDays(10)
+            lastFour = "1234",
+            previousDue = 12500.0,
+            previousDueDate = LocalDate.now().plusDays(10)
         )
         whenever(recurringRuleRepository.getUpcomingRules(startDate, endDate)).thenReturn(emptyList())
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(listOf(ccBill))
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(listOf(card))
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val bills = repository.getUpcomingBills(startDate, endDate)
 
@@ -200,13 +203,15 @@ class UpcomingBillsRepositoryTest {
     // Test 11: getBillSummary calculates this month totals
     @Test
     fun `getBillSummary calculates this month totals correctly`() = runTest {
+        // Use a date that's definitely within this month (middle of the month)
+        val thisMonthDate = YearMonth.now().atDay(15)
         val thisMonthRule = createRecurringRule(
             expectedAmount = 1000.0,
-            nextExpected = LocalDate.now().plusDays(5)
+            nextExpected = thisMonthDate
         )
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(thisMonthRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val summary = repository.getBillSummary()
 
@@ -223,8 +228,8 @@ class UpcomingBillsRepositoryTest {
             nextExpected = nextMonthDate
         )
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(nextMonthRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val summary = repository.getBillSummary()
 
@@ -238,8 +243,8 @@ class UpcomingBillsRepositoryTest {
             nextExpected = LocalDate.now().minusDays(5)
         )
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(overdueRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val summary = repository.getBillSummary()
 
@@ -251,8 +256,8 @@ class UpcomingBillsRepositoryTest {
     fun `getBillSummary counts bills due today`() = runTest {
         val todayRule = createRecurringRule(nextExpected = LocalDate.now())
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(todayRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val summary = repository.getBillSummary()
 
@@ -263,8 +268,8 @@ class UpcomingBillsRepositoryTest {
     @Test
     fun `getBillSummary returns empty summary when no bills`() = runTest {
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(emptyList())
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val summary = repository.getBillSummary()
 
@@ -281,8 +286,8 @@ class UpcomingBillsRepositoryTest {
     fun `getGroupedBills groups bills due today`() = runTest {
         val todayRule = createRecurringRule(nextExpected = LocalDate.now())
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(todayRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val groups = repository.getGroupedBills()
 
@@ -294,8 +299,8 @@ class UpcomingBillsRepositoryTest {
     fun `getGroupedBills groups bills due tomorrow`() = runTest {
         val tomorrowRule = createRecurringRule(nextExpected = LocalDate.now().plusDays(1))
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(tomorrowRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val groups = repository.getGroupedBills()
 
@@ -307,8 +312,8 @@ class UpcomingBillsRepositoryTest {
     fun `getGroupedBills groups bills due this week`() = runTest {
         val thisWeekRule = createRecurringRule(nextExpected = LocalDate.now().plusDays(5))
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(thisWeekRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val groups = repository.getGroupedBills()
 
@@ -322,8 +327,8 @@ class UpcomingBillsRepositoryTest {
         val laterThisMonth = LocalDate.now().plusDays(15)
         val laterRule = createRecurringRule(nextExpected = laterThisMonth)
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(laterRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val groups = repository.getGroupedBills()
 
@@ -341,8 +346,8 @@ class UpcomingBillsRepositoryTest {
         val nextMonthDate = LocalDate.now().plusMonths(1).withDayOfMonth(15)
         val nextMonthRule = createRecurringRule(nextExpected = nextMonthDate)
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(nextMonthRule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val groups = repository.getGroupedBills()
 
@@ -357,8 +362,8 @@ class UpcomingBillsRepositoryTest {
         val dueDate = LocalDate.now().withDayOfMonth(15)
         val rule = createRecurringRule(nextExpected = dueDate)
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(rule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val calendarBills = repository.getBillsForCalendar(YearMonth.now())
 
@@ -372,8 +377,8 @@ class UpcomingBillsRepositoryTest {
         val rule1 = createRecurringRule(id = 1L, nextExpected = dueDate)
         val rule2 = createRecurringRule(id = 2L, nextExpected = dueDate)
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(rule1, rule2))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val calendarBills = repository.getBillsForCalendar(YearMonth.now())
 
@@ -384,8 +389,8 @@ class UpcomingBillsRepositoryTest {
     @Test
     fun `getBillsForCalendar returns empty map for month without bills`() = runTest {
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(emptyList())
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val calendarBills = repository.getBillsForCalendar(YearMonth.now().plusMonths(6))
 
@@ -397,10 +402,10 @@ class UpcomingBillsRepositoryTest {
     fun `getBillsForCalendar includes bills from all sources`() = runTest {
         val dueDate = LocalDate.now().withDayOfMonth(10)
         val rule = createRecurringRule(nextExpected = dueDate)
-        val ccBill = CreditCardBill("1234", "HDFC", 5000.0, null, dueDate)
+        val card = createCreditCard(previousDue = 5000.0, previousDueDate = dueDate)
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(rule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(listOf(ccBill))
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(listOf(card))
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val calendarBills = repository.getBillsForCalendar(YearMonth.now())
 
@@ -413,8 +418,8 @@ class UpcomingBillsRepositoryTest {
         val thisMonth = YearMonth.now()
         val rule = createRecurringRule(nextExpected = thisMonth.atDay(15))
         whenever(recurringRuleRepository.getUpcomingRules(any(), any())).thenReturn(listOf(rule))
-        whenever(creditCardRepository.getUpcomingBills(any())).thenReturn(emptyList())
-        whenever(patternDetectionService.detectPatterns()).thenReturn(emptyList())
+        whenever(creditCardRepository.getActiveCards()).thenReturn(emptyList())
+        whenever(patternSuggestionRepository.getPendingSuggestions()).thenReturn(emptyList())
 
         val calendarBills = repository.getBillsForCalendar(thisMonth)
 
@@ -563,10 +568,12 @@ class UpcomingBillsRepositoryTest {
     fun `refreshPatternSuggestions returns detected patterns`() = runTest {
         val suggestion = createPatternSuggestion()
         whenever(patternDetectionService.detectPatterns()).thenReturn(listOf(suggestion))
+        whenever(patternSuggestionRepository.createFromPatternDetection(suggestion)).thenReturn(suggestion)
 
         val suggestions = repository.refreshPatternSuggestions()
 
         assertEquals(1, suggestions.size)
+        verify(patternSuggestionRepository).createFromPatternDetection(suggestion)
     }
 
     // Test 35: refreshPatternSuggestions returns empty when no patterns

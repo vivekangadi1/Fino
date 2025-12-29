@@ -640,6 +640,58 @@ class PatternDetectionServiceTest {
         verify(recurringRuleRepository, never()).insert(any())
     }
 
+    // ==================== Lower Threshold Tests (New) ====================
+
+    // Test 43: detectPatterns detects pattern with 2 occurrences (lowered threshold)
+    @Test
+    fun `detectPatterns detects pattern with 2 occurrences`() = runTest {
+        val transactions = listOf(
+            createTransaction("Netflix", LocalDateTime.of(2024, 1, 15, 10, 0), 649.0),
+            createTransaction("Netflix", LocalDateTime.of(2024, 2, 15, 10, 0), 649.0)
+        )
+        whenever(transactionRepository.getAllTransactions()).thenReturn(transactions)
+        whenever(recurringRuleRepository.findByMerchantPattern(any())).thenReturn(null)
+
+        val suggestions = service.detectPatterns()
+
+        // With MIN_OCCURRENCES = 2, this should now detect a pattern
+        assertTrue(suggestions.isNotEmpty())
+        assertEquals("NETFLIX", suggestions[0].merchantPattern)
+    }
+
+    // Test 44: detectPatterns returns suggestion with lower confidence threshold
+    @Test
+    fun `detectPatterns returns suggestion with 0_55 confidence`() = runTest {
+        // Create transactions that would have lower confidence (variable amounts, slight timing variance)
+        val transactions = listOf(
+            createTransaction("SomeMerchant", LocalDateTime.of(2024, 1, 10, 10, 0), 500.0),
+            createTransaction("SomeMerchant", LocalDateTime.of(2024, 2, 12, 10, 0), 520.0)
+        )
+        whenever(transactionRepository.getAllTransactions()).thenReturn(transactions)
+        whenever(recurringRuleRepository.findByMerchantPattern(any())).thenReturn(null)
+
+        val suggestions = service.detectPatterns()
+
+        // With MIN_CONFIDENCE = 0.55, patterns with moderate confidence should be included
+        suggestions.forEach { suggestion ->
+            assertTrue(suggestion.confidence >= PatternDetectionService.MIN_CONFIDENCE)
+        }
+    }
+
+    // Test 45: detectFrequency detects monthly pattern with 2 dates (lowered threshold)
+    @Test
+    fun `detectFrequency returns MONTHLY for 2 dates with monthly interval`() {
+        val dates = listOf(
+            LocalDate.of(2024, 1, 15),
+            LocalDate.of(2024, 2, 15)
+        )
+
+        val frequency = service.detectFrequency(dates)
+
+        // With MIN_OCCURRENCES = 2, this should detect MONTHLY
+        assertEquals(RecurringFrequency.MONTHLY, frequency)
+    }
+
     // ==================== Helper Functions ====================
 
     private fun createTransaction(

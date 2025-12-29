@@ -21,7 +21,8 @@ class UpcomingBillsRepository @Inject constructor(
     private val recurringRuleRepository: RecurringRuleRepository,
     private val creditCardRepository: CreditCardRepository,
     private val patternDetectionService: PatternDetectionService,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val patternSuggestionRepository: PatternSuggestionRepository
 ) {
     /**
      * Get a flow of upcoming bills from recurring rules and credit cards.
@@ -71,8 +72,8 @@ class UpcomingBillsRepository @Inject constructor(
             bills.add(mapCreditCardToBill(card))
         }
 
-        // Get pattern suggestions (filtered by date range and excluding merchants with rules)
-        val suggestions = patternDetectionService.detectPatterns()
+        // Get persisted pattern suggestions (filtered by date range and excluding merchants with rules)
+        val suggestions = patternSuggestionRepository.getPendingSuggestions()
         suggestions
             .filter { it.nextExpected in startDate..endDate }
             .filter { it.merchantPattern.uppercase() !in merchantsWithRules }
@@ -216,9 +217,21 @@ class UpcomingBillsRepository @Inject constructor(
 
     /**
      * Refresh pattern suggestions from transaction history.
+     * Detects patterns and persists them to the database.
+     * Returns the list of newly created suggestions.
      */
     suspend fun refreshPatternSuggestions(): List<PatternSuggestion> {
-        return patternDetectionService.detectPatterns()
+        val detectedPatterns = patternDetectionService.detectPatterns()
+        val newSuggestions = mutableListOf<PatternSuggestion>()
+
+        for (pattern in detectedPatterns) {
+            val created = patternSuggestionRepository.createFromPatternDetection(pattern)
+            if (created != null) {
+                newSuggestions.add(created)
+            }
+        }
+
+        return newSuggestions
     }
 
     // ==================== Mapping Functions ====================

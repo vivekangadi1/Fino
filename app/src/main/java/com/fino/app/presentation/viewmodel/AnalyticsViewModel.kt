@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -712,9 +713,8 @@ class AnalyticsViewModel @Inject constructor(
      */
     suspend fun loadBudgetForecast() {
         val categoryNamesMap = mutableMapOf<Long, Pair<String, String>>()
-        categoryRepository.getAllActive().collect { categories ->
-            categories.forEach { categoryNamesMap[it.id] = Pair(it.name, it.emoji) }
-        }
+        val categories = categoryRepository.getAllActive().first()
+        categories.forEach { categoryNamesMap[it.id] = Pair(it.name, it.emoji) }
 
         val forecast = forecastService.calculateForecast(
             transactions = allTransactions,

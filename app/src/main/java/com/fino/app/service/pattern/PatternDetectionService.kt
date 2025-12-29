@@ -23,11 +23,11 @@ class PatternDetectionService @Inject constructor(
     private val merchantMatcher: MerchantMatcher
 ) {
     companion object {
-        const val MIN_OCCURRENCES = 3 // Require 3+ occurrences for pattern detection
+        const val MIN_OCCURRENCES = 2 // Lowered from 3 to detect patterns earlier
         const val MAX_AMOUNT_VARIANCE = 0.05f // 5% tolerance for fixed amount bills
         const val VARIABLE_BILL_MAX_VARIANCE = 0.5f // 50% tolerance for variable bills (utilities)
-        const val MIN_CONFIDENCE = 0.65f
-        const val ANALYSIS_MONTHS = 3
+        const val MIN_CONFIDENCE = 0.55f // Lowered from 0.65 to include more suggestions
+        const val ANALYSIS_MONTHS = 6 // Increased from 3 for better pattern detection
         const val FUZZY_MATCH_THRESHOLD = 0.8f
 
         // Frequency detection thresholds

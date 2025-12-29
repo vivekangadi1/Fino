@@ -201,6 +201,42 @@ class UpcomingBillsViewModel @Inject constructor(
     }
 
     /**
+     * Refresh pattern detection by scanning transaction history.
+     * Detects recurring patterns and persists them as suggestions.
+     * Call this when user wants to manually trigger pattern scanning.
+     */
+    fun refreshPatternDetection() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                // Detect patterns and persist them
+                val newSuggestions = upcomingBillsRepository.refreshPatternSuggestions()
+
+                // Reload data to show new patterns in upcoming bills
+                loadData()
+
+                // Optional: Show success message with count
+                if (newSuggestions.isNotEmpty()) {
+                    _uiState.update { it.copy(
+                        isLoading = false,
+                        error = null
+                    )}
+                } else {
+                    _uiState.update { it.copy(
+                        isLoading = false,
+                        error = null
+                    )}
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    error = "Pattern detection failed: ${e.message}"
+                )}
+            }
+        }
+    }
+
+    /**
      * Load calendar data for the selected month
      */
     private suspend fun loadCalendarData() {

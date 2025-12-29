@@ -1,6 +1,8 @@
 package com.fino.app.service.sms
 
 import android.content.Context
+import androidx.work.WorkManager
+import com.fino.app.data.repository.CreditCardRepository
 import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionSource
@@ -12,8 +14,11 @@ import com.fino.app.service.parser.SmsParser
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
+import org.mockito.Mockito
 import org.mockito.kotlin.*
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -24,16 +29,25 @@ class SmsScannerTest {
     private lateinit var mockContext: Context
     private lateinit var mockSmsReader: SmsReader
     private lateinit var mockTransactionRepository: TransactionRepository
+    private lateinit var mockCreditCardRepository: CreditCardRepository
     private lateinit var mockSmsParser: SmsParser
     private lateinit var mockSmartCategorizationService: SmartCategorizationService
+    private lateinit var mockWorkManager: WorkManager
+    private lateinit var workManagerMockedStatic: MockedStatic<WorkManager>
 
     @Before
     fun setup() {
         mockContext = mock()
         mockSmsReader = mock()
         mockTransactionRepository = mock()
+        mockCreditCardRepository = mock()
         mockSmsParser = mock()
         mockSmartCategorizationService = mock()
+        mockWorkManager = mock()
+
+        // Mock static WorkManager.getInstance()
+        workManagerMockedStatic = Mockito.mockStatic(WorkManager::class.java)
+        workManagerMockedStatic.`when`<WorkManager> { WorkManager.getInstance(any()) }.thenReturn(mockWorkManager)
 
         // Default categorization result
         runBlocking {
@@ -48,7 +62,19 @@ class SmsScannerTest {
             )
         }
 
-        smsScanner = SmsScanner(mockContext, mockSmsReader, mockTransactionRepository, mockSmsParser, mockSmartCategorizationService)
+        smsScanner = SmsScanner(
+            mockContext,
+            mockSmsReader,
+            mockTransactionRepository,
+            mockCreditCardRepository,
+            mockSmsParser,
+            mockSmartCategorizationService
+        )
+    }
+
+    @After
+    fun tearDown() {
+        workManagerMockedStatic.close()
     }
 
     @Test

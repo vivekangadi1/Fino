@@ -165,8 +165,8 @@ class SmsScanner @Inject constructor(
             errors = errors
         )
 
-        // Trigger pattern detection if significant transactions were saved
-        if (transactionsSaved >= 5) {
+        // Trigger pattern detection if any transactions were saved (lowered from 5)
+        if (transactionsSaved >= 1) {
             triggerPatternDetection()
         }
 
@@ -180,7 +180,7 @@ class SmsScanner @Inject constructor(
     private fun triggerPatternDetection() {
         Log.d(TAG, "Scheduling pattern detection after batch scan...")
         val workRequest = OneTimeWorkRequestBuilder<RecurringPatternWorker>()
-            .setInitialDelay(30, TimeUnit.SECONDS)
+            .setInitialDelay(10, TimeUnit.SECONDS) // Reduced from 30 for faster feedback
             .build()
         WorkManager.getInstance(context).enqueue(workRequest)
     }

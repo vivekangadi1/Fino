@@ -254,6 +254,29 @@ fun HomeScreen(
                 ModernBudgetCard()
             }
 
+            // Budget Forecast Summary
+            uiState.budgetForecast?.let { forecast ->
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Next Month Forecast",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SlideInCard(delay = 250) {
+                            CompactForecastCard(
+                                forecast = forecast,
+                                onViewDetails = onNavigateToAnalytics
+                            )
+                        }
+                    }
+                }
+            }
+
             // XP Progress Teaser
             item {
                 XpTeaserCard(

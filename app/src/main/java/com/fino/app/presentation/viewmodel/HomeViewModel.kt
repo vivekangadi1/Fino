@@ -8,6 +8,8 @@ import com.fino.app.data.repository.TransactionRepository
 import com.fino.app.data.repository.UpcomingBillsRepository
 import com.fino.app.data.repository.UserStatsRepository
 import com.fino.app.domain.model.BillSummary
+import com.fino.app.service.forecast.BudgetForecast
+import com.fino.app.service.forecast.ForecastService
 import com.fino.app.domain.model.Category
 import com.fino.app.domain.model.EventSummary
 import com.fino.app.domain.model.Transaction
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -75,7 +78,9 @@ data class HomeUiState(
     val categoryNames: Map<Long, Pair<String, String>> = emptyMap(), // categoryId -> (name, emoji)
     // Uncategorized transactions
     val uncategorizedCount: Int = 0,
-    val uncategorizedTransactions: List<Transaction> = emptyList()
+    val uncategorizedTransactions: List<Transaction> = emptyList(),
+    // Budget forecast
+    val budgetForecast: BudgetForecast? = null
 ) {
     val hasUrgentBills: Boolean
         get() = (upcomingBillsSummary?.overdueCount ?: 0) > 0 ||
@@ -89,7 +94,8 @@ class HomeViewModel @Inject constructor(
     private val userStatsRepository: UserStatsRepository,
     private val upcomingBillsRepository: UpcomingBillsRepository,
     private val eventRepository: EventRepository,
-    private val levelCalculator: LevelCalculator
+    private val levelCalculator: LevelCalculator,
+    private val forecastService: ForecastService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -98,6 +104,7 @@ class HomeViewModel @Inject constructor(
     init {
         loadData()
         loadCategories()
+        loadBudgetForecast()
     }
 
     private fun loadCategories() {
@@ -347,6 +354,29 @@ class HomeViewModel @Inject constructor(
             .sortedByDescending { it.amount }
 
         return Pair(totalSpending, categoryBreakdown)
+    }
+
+    /**
+     * Load budget forecast data for next month
+     */
+    fun loadBudgetForecast() {
+        viewModelScope.launch {
+            try {
+                val categoryNamesMap = mutableMapOf<Long, Pair<String, String>>()
+                val categories = categoryRepository.getAllActive().first()
+                categories.forEach { categoryNamesMap[it.id] = Pair(it.name, it.emoji) }
+
+                val allTxns = transactionRepository.getAllTransactionsFlow().first()
+                val forecast = forecastService.calculateForecast(
+                    transactions = allTxns,
+                    categoryNames = categoryNamesMap
+                )
+
+                _uiState.update { it.copy(budgetForecast = forecast) }
+            } catch (e: Exception) {
+                // Log error but don't crash - forecast is optional
+            }
+        }
     }
 }
 
