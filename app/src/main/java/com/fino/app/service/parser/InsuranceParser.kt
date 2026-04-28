@@ -31,7 +31,7 @@ class InsuranceParser {
             isSubscription = true
         ),
 
-        // Insurance AutoPay: "Rs 5000.00 debited from ICICI Bank Savings Account XX494 on 10-Dec-25 towards ICICI Prudential Life for Insurance AutoPay"
+        // Insurance AutoPay: "Rs 5000.00 debited from ICICI Bank Savings Account XX222 on 10-Dec-25 towards ICICI Prudential Life for Insurance AutoPay"
         ParsePattern(
             name = "INSURANCE_AUTOPAY",
             regex = Regex(

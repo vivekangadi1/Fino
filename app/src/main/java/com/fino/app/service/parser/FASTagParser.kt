@@ -13,7 +13,7 @@ import java.util.Locale
 class FASTagParser {
 
     private val patterns = listOf(
-        // ICICI FASTag: "Rs.75 paid at LinkRoadL1Toll for KA03NK9463 on 19-12-2025 20:21:54 with ICICI Bank FASTag"
+        // ICICI FASTag: "Rs.75 paid at LinkRoadL1Toll for KA01AB1234 on 19-12-2025 20:21:54 with ICICI Bank FASTag"
         ParsePattern(
             name = "ICICI_FASTAG",
             regex = Regex(
@@ -23,7 +23,7 @@ class FASTagParser {
             confidence = 0.95f
         ),
 
-        // ICICI FASTag alternate: "INR 75.00 deducted from FASTag linked to vehicle KA03NK9463 at TollPlaza on DD-MM-YYYY"
+        // ICICI FASTag alternate: "INR 75.00 deducted from FASTag linked to vehicle KA01AB1234 at TollPlaza on DD-MM-YYYY"
         ParsePattern(
             name = "ICICI_FASTAG_ALT",
             regex = Regex(

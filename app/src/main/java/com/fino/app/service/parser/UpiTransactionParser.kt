@@ -33,7 +33,7 @@ class UpiTransactionParser {
 
         // ==================== ICICI PATTERNS ====================
 
-        // ICICI Account UPI: "ICICI Bank Acct XX494 debited for Rs 1534.00 on 20-Dec-25; MERCHANT credited. UPI:123456"
+        // ICICI Account UPI: "ICICI Bank Acct XX222 debited for Rs 1500.00 on 20-Dec-25; MERCHANT credited. UPI:123456"
         ParsePattern(
             name = "ICICI_ACCOUNT_UPI",
             regex = Regex(
@@ -43,7 +43,7 @@ class UpiTransactionParser {
             confidence = 0.95f
         ),
 
-        // ICICI Autopay: "Rs 1499.00 debited from ICICI Bank Savings Account XX494 on 17-Dec-25 towards JioHotstar for Autopay AutoPay Retrieval Ref No.535196959911"
+        // ICICI Autopay: "Rs 1499.00 debited from ICICI Bank Savings Account XX222 on 17-Dec-25 towards JioHotstar for Autopay AutoPay Retrieval Ref No.100000000001"
         // Also handles: "towards Google Play for GOOGLE AutoPay", "towards Amazon India for Amazon Prime AutoPay"
         ParsePattern(
             name = "ICICI_AUTOPAY",
@@ -67,7 +67,7 @@ class UpiTransactionParser {
             isSubscription = true
         ),
 
-        // ICICI Bank Sweep to OD: "ICICI Bank Acc XX494 debited Rs. 11,629.00 on 24-Dec-25 InfoSweep to OD A.Avl Bal Rs. 6,402.79."
+        // ICICI Bank Sweep to OD: "ICICI Bank Acc XX222 debited Rs. 4,500.00 on 24-Dec-25 InfoSweep to OD A.Avl Bal Rs. 1,234.56."
         ParsePattern(
             name = "ICICI_SWEEP",
             regex = Regex(
@@ -77,7 +77,7 @@ class UpiTransactionParser {
             confidence = 0.95f
         ),
 
-        // ICICI AutoPay Mandate Revocation: "Dear Customer, your AutoPay mandate is successfully revoked towards GOOGLE INDIA DI for Rs 199.00, RRN 182265865362-ICICI Bank."
+        // ICICI AutoPay Mandate Revocation: "Dear Customer, your AutoPay mandate is successfully revoked towards GOOGLE INDIA DI for Rs 199.00, RRN 100000000005-ICICI Bank."
         // Important for tracking cancelled recurring subscriptions
         ParsePattern(
             name = "ICICI_AUTOPAY_REVOCATION",
@@ -91,7 +91,7 @@ class UpiTransactionParser {
 
         // Note: "Your account will be debited..." notifications are skipped - we only track actual debits
 
-        // ICICI Credit (Incoming): "Acct XX494 is credited with Rs 10000.00 on 15-Dec-25 from SENDER. UPI:123456"
+        // ICICI Credit (Incoming): "Acct XX222 is credited with Rs 10000.00 on 15-Dec-25 from SENDER. UPI:123456"
         ParsePattern(
             name = "ICICI_CREDIT",
             regex = Regex(

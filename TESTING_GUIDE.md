@@ -626,4 +626,4 @@ adb logcat -s "AndroidRuntime:*" "SmsParser:*"
 
 **Last Updated**: December 20, 2025
 **Version**: 1.0
-**Related**: See plan file at `C:\Users\Vivek Angadi\.claude\plans\glittery-foraging-petal.md`
+**Related**: See local plan file under `~/.claude/plans/`

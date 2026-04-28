@@ -1,4 +1,4 @@
-$env:JAVA_HOME = 'C:\projects\Fino\jdk-17.0.13+11'
+$env:JAVA_HOME = Join-Path $PSScriptRoot 'jdk-17.0.13+11'
 
 Write-Host "Running SmsParser tests..." -ForegroundColor Cyan
 Write-Host ""

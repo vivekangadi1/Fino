@@ -323,7 +323,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay JioHotstar - for Autopay pattern`() {
-        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX494 on 17-Dec-25 towards JioHotstar for Autopay AutoPay Retrieval Ref No.535196959911"
+        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX222 on 17-Dec-25 towards JioHotstar for Autopay AutoPay Retrieval Ref No.100000000001"
 
         val result = parser.parse(sms)
 
@@ -337,7 +337,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay Spotify - for MERCHANTMANDATE pattern`() {
-        val sms = "Rs 179.00 debited from ICICI Bank Savings Account XX494 on 17-Dec-25 towards Spotify India L for MERCHANTMANDATE AutoPay Retrieval Ref No.108775528251"
+        val sms = "Rs 179.00 debited from ICICI Bank Savings Account XX222 on 17-Dec-25 towards Spotify India L for MERCHANTMANDATE AutoPay Retrieval Ref No.100000000002"
 
         val result = parser.parse(sms)
 
@@ -349,7 +349,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay Google Play - for GOOGLE AutoPay pattern`() {
-        val sms = "Rs 249.00 debited from ICICI Bank Savings Account XX494 on 28-Nov-25 towards Google Play for GOOGLE AutoPay Retrieval Ref No.711353563325"
+        val sms = "Rs 249.00 debited from ICICI Bank Savings Account XX222 on 28-Nov-25 towards Google Play for GOOGLE AutoPay Retrieval Ref No.100000000003"
 
         val result = parser.parse(sms)
 
@@ -361,7 +361,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay Amazon Prime - for Amazon Prime AutoPay pattern`() {
-        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX494 on 15-Dec-25 towards Amazon India for Amazon Prime AutoPay Retrieval Ref No.123456789012"
+        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX222 on 15-Dec-25 towards Amazon India for Amazon Prime AutoPay Retrieval Ref No.123456789012"
 
         val result = parser.parse(sms)
 
@@ -373,7 +373,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay Success - for GOOGLE AutoPay pattern`() {
-        val sms = "Your account has been successfully debited with Rs 199.00 on 27-Nov-25 towards Google Play for GOOGLE AutoPay, RRN 529552463315-ICICI Bank."
+        val sms = "Your account has been successfully debited with Rs 199.00 on 27-Nov-25 towards Google Play for GOOGLE AutoPay, RRN 100000000005-ICICI Bank."
 
         val result = parser.parse(sms)
 
@@ -385,7 +385,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Autopay heroelectronix - for Create Mandate pattern`() {
-        val sms = "Rs 149.00 debited from ICICI Bank Savings Account XX494 on 01-Dec-25 towards heroelectronix for Create Mandate AutoPay Retrieval Ref No.533507411477"
+        val sms = "Rs 149.00 debited from ICICI Bank Savings Account XX222 on 01-Dec-25 towards heroelectronix for Create Mandate AutoPay Retrieval Ref No.100000000004"
 
         val result = parser.parse(sms)
 
@@ -398,7 +398,7 @@ class SmsParserTest {
     @Test
     fun `parse ICICI Autopay with multi-line SMS body`() {
         // Simulate potential newline in SMS
-        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX494 on 17-Dec-25 towards\nJioHotstar for Autopay AutoPay Retrieval Ref No.535196959911"
+        val sms = "Rs 1499.00 debited from ICICI Bank Savings Account XX222 on 17-Dec-25 towards\nJioHotstar for Autopay AutoPay Retrieval Ref No.100000000001"
 
         val result = parser.parse(sms)
 
@@ -476,7 +476,7 @@ class SmsParserTest {
 
     @Test
     fun `parse insurance autopay debit`() {
-        val sms = "Rs 5000.00 debited from ICICI Bank Savings Account XX494 on 10-Dec-25 towards ICICI Prudential Life for Insurance AutoPay"
+        val sms = "Rs 5000.00 debited from ICICI Bank Savings Account XX222 on 10-Dec-25 towards ICICI Prudential Life for Insurance AutoPay"
 
         val result = parser.parse(sms)
 
@@ -603,15 +603,15 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Bank Sweep to OD account`() {
-        val sms = "ICICI Bank Acc XX494 debited Rs. 11,629.00 on 24-Dec-25 InfoSweep to OD A.Avl Bal Rs. 6,402.79.To dispute call 18002662 or SMS BLOCK 494 to 9215676766"
+        val sms = "ICICI Bank Acc XX567 debited Rs. 4,500.00 on 24-Dec-25 InfoSweep to OD A.Avl Bal Rs. 1,234.56.To dispute call 18002662 or SMS BLOCK 567 to 9215676766"
 
         val result = parser.parse(sms)
 
         assertNotNull("Should parse ICICI Bank Sweep", result)
-        assertEquals(11629.0, result!!.amount, 0.01)
+        assertEquals(4500.0, result!!.amount, 0.01)
         assertEquals(TransactionType.DEBIT, result.type)
         assertEquals("Sweep to OD Account", result.merchantName)
-        assertEquals("494", result.accountLastFour)
+        assertEquals("567", result.accountLastFour)
         assertEquals("ICICI", result.bankName)
     }
 
@@ -658,14 +658,14 @@ class SmsParserTest {
 
     @Test
     fun `parse Axis Credit Card Bill`() {
-        val sms = "Payment of INR 15236.36 for Axis Bank Credit Card no. XX5519 is due on 01-01-26 with minimum amount due of INR 305."
+        val sms = "Payment of INR 5500.00 for Axis Bank Credit Card no. XX5555 is due on 01-01-26 with minimum amount due of INR 100."
 
         val result = parser.parseBill(sms)
 
         assertNotNull("Should parse Axis CC Bill", result)
-        assertEquals(15236.36, result!!.totalDue, 0.01)
-        assertEquals(305.0, result.minimumDue!!, 0.01)
-        assertEquals("5519", result.cardLastFour)
+        assertEquals(5500.0, result!!.totalDue, 0.01)
+        assertEquals(100.0, result.minimumDue!!, 0.01)
+        assertEquals("5555", result.cardLastFour)
         assertEquals("AXIS", result.bankName)
         assertEquals(LocalDate.of(2026, 1, 1), result.dueDate)
     }
@@ -685,7 +685,7 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Statement Email notification`() {
-        val sms = "ICICI Bank Credit Card XX1016 Statement is sent to vi********di@gmail.com. Total of Rs 1,504.00 or minimum of Rs 100.00 is due by 05-JAN-26."
+        val sms = "ICICI Bank Credit Card XX1016 Statement is sent to te********er@example.com. Total of Rs 1,504.00 or minimum of Rs 100.00 is due by 05-JAN-26."
 
         val result = parser.parseBill(sms)
 
@@ -712,14 +712,14 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI Auto-debit Bill notification`() {
-        val sms = "Total Amount Due on ICICI Bank Credit Card XX2000 is INR 2,218.42. Amount will be debited from your bank account on or before 29-Dec-25. Pls ignore if paid."
+        val sms = "Total Amount Due on ICICI Bank Credit Card XX2222 is INR 1,500.00. Amount will be debited from your bank account on or before 29-Dec-25. Pls ignore if paid."
 
         val result = parser.parseBill(sms)
 
         assertNotNull("Should parse ICICI Auto-debit Bill", result)
-        assertEquals(2218.42, result!!.totalDue, 0.01)
+        assertEquals(1500.0, result!!.totalDue, 0.01)
         assertNull("Minimum due not provided in this format", result.minimumDue)
-        assertEquals("2000", result.cardLastFour)
+        assertEquals("2222", result.cardLastFour)
         assertEquals("ICICI", result.bankName)
         assertEquals(LocalDate.of(2025, 12, 29), result.dueDate)
     }
@@ -739,14 +739,14 @@ class SmsParserTest {
 
     @Test
     fun `parse ICICI AutoPay Mandate Revocation - Google`() {
-        val sms = "Dear Customer, your AutoPay mandate is successfully revoked towards GOOGLE INDIA DI for Rs 199.00, RRN 182265865362-ICICI Bank."
+        val sms = "Dear Customer, your AutoPay mandate is successfully revoked towards GOOGLE INDIA DI for Rs 199.00, RRN 100000000005-ICICI Bank."
 
         val result = parser.parse(sms)
 
         assertNotNull("Should parse ICICI AutoPay Revocation", result)
         assertEquals(199.0, result!!.amount, 0.01)
         assertEquals("GOOGLE INDIA DI", result.merchantName)
-        assertEquals("182265865362", result.reference)
+        assertEquals("100000000005", result.reference)
         assertEquals("ICICI", result.bankName)
         assertEquals(PaymentChannel.AUTOPAY, result.paymentChannel)
         assertTrue("Should be flagged as subscription", result.isLikelySubscription)

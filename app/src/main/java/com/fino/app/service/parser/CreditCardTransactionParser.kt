@@ -11,7 +11,7 @@ class CreditCardTransactionParser {
     private val patterns = listOf(
         // ==================== ICICI NEW PATTERNS (Most common) ====================
 
-        // ICICI CC Spent: "INR 625.00 spent using ICICI Bank Card XX2000 on 17-Dec-25 on SAMSUNG ELECTRO"
+        // ICICI CC Spent: "INR 625.00 spent using ICICI Bank Card XX2222 on 17-Dec-25 on SAMSUNG ELECTRO"
         ParsePattern(
             name = "ICICI_CC_SPENT_INR",
             regex = Regex(
@@ -21,7 +21,7 @@ class CreditCardTransactionParser {
             confidence = 0.95f
         ),
 
-        // ICICI CC USD: "USD 102.97 spent using ICICI Bank Card XX2000 on 20-Dec-25 on CLAUDE.AI SUBSC"
+        // ICICI CC USD: "USD 102.97 spent using ICICI Bank Card XX2222 on 20-Dec-25 on CLAUDE.AI SUBSC"
         ParsePattern(
             name = "ICICI_CC_SPENT_USD",
             regex = Regex(
@@ -33,7 +33,7 @@ class CreditCardTransactionParser {
 
         // ==================== AXIS NEW PATTERNS ====================
 
-        // Axis CC Multi-line: "Spent INR 340\nAxis Bank Card no. XX5519\n20-12-25 15:19:56 IST\nMERCHANT"
+        // Axis CC Multi-line: "Spent INR 340\nAxis Bank Card no. XX5555\n20-12-25 15:19:56 IST\nMERCHANT"
         ParsePattern(
             name = "AXIS_CC_MULTILINE",
             regex = Regex(
@@ -168,7 +168,7 @@ class CreditCardTransactionParser {
 
         // ==================== ICICI STANDING INSTRUCTIONS ====================
 
-        // ICICI CC Standing Instruction processed (USD): "we have successfully processed the payment of USD 4.72 for OpenAILLC, as per the Standing Instruction XohYoDZtIk, on 05/11/2025 for your ICICI Bank Credit Card 2000"
+        // ICICI CC Standing Instruction processed (USD): "we have successfully processed the payment of USD 4.72 for OpenAILLC, as per the Standing Instruction TestSI001A, on 05/11/2025 for your ICICI Bank Credit Card 2222"
         ParsePattern(
             name = "ICICI_CC_STANDING_USD",
             regex = Regex(
@@ -179,7 +179,7 @@ class CreditCardTransactionParser {
             isSubscription = true
         ),
 
-        // ICICI CC Standing Instruction processed (INR): "we have successfully processed the payment of INR 672.60 for Amazon, as per the Standing Instruction XoUcHa7LF0"
+        // ICICI CC Standing Instruction processed (INR): "we have successfully processed the payment of INR 672.60 for Amazon, as per the Standing Instruction TestSI002B"
         ParsePattern(
             name = "ICICI_CC_STANDING_INR",
             regex = Regex(
@@ -192,7 +192,7 @@ class CreditCardTransactionParser {
 
         // ==================== AXIS AUTOPAY ====================
 
-        // Axis CC AutoPay notification: "INR 2060.28 for Airtel will be auto debited via Axis Bank Credit Card no. XX5519 by 07-12-25"
+        // Axis CC AutoPay notification: "INR 1200.00 for Airtel will be auto debited via Axis Bank Credit Card no. XX5555 by 07-12-25"
         // Note: This is a notification, not actual debit - skip for now
 
         // Axis CC AutoPay actual debit would come as regular Axis CC spent notification

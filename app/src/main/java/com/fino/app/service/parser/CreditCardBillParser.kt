@@ -61,7 +61,7 @@ class CreditCardBillParser {
             confidence = 0.95f
         ),
 
-        // Axis: "Payment of INR 15236.36 for Axis Bank Credit Card no. XX5519 is due on 01-01-26 with minimum amount due of INR 305."
+        // Axis: "Payment of INR 5500.00 for Axis Bank Credit Card no. XX5555 is due on 01-01-26 with minimum amount due of INR 100."
         ParsePattern(
             name = "AXIS_BILL",
             regex = Regex(
@@ -81,7 +81,7 @@ class CreditCardBillParser {
             confidence = 0.95f
         ),
 
-        // ICICI Auto-debit: "Total Amount Due on ICICI Bank Credit Card XX2000 is INR 2,218.42. Amount will be debited...on or before 29-Dec-25."
+        // ICICI Auto-debit: "Total Amount Due on ICICI Bank Credit Card XX2222 is INR 1,500.00. Amount will be debited...on or before 29-Dec-25."
         ParsePattern(
             name = "ICICI_AUTODEBIT_BILL",
             regex = Regex(
@@ -136,7 +136,7 @@ class CreditCardBillParser {
                 dueDate = parseBillDate(match.groupValues[4])
             )
 
-            // Axis: Payment of INR X for Axis Bank Credit Card no. XX5519 is due on DD-MM-YY with minimum amount due of INR Y
+            // Axis: Payment of INR X for Axis Bank Credit Card no. XX5555 is due on DD-MM-YY with minimum amount due of INR Y
             "AXIS_BILL" -> ParsedBill(
                 cardLastFour = match.groupValues[2],
                 bankName = "AXIS",
@@ -154,7 +154,7 @@ class CreditCardBillParser {
                 dueDate = parseBillDate(match.groupValues[4])
             )
 
-            // ICICI Auto-debit: Total Amount Due on ICICI Bank Credit Card XX2000 is INR X...on or before DD-MMM-YY
+            // ICICI Auto-debit: Total Amount Due on ICICI Bank Credit Card XX2222 is INR X...on or before DD-MMM-YY
             "ICICI_AUTODEBIT_BILL" -> ParsedBill(
                 cardLastFour = match.groupValues[1],
                 bankName = "ICICI",
