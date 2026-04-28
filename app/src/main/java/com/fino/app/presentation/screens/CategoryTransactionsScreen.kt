@@ -28,7 +28,11 @@ import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionType
 import com.fino.app.presentation.components.AnimatedEmptyState
 import com.fino.app.presentation.theme.*
+import com.fino.app.presentation.viewmodel.CategoryMonthlyBar
+import com.fino.app.presentation.viewmodel.CategoryTopMerchantRow
+import com.fino.app.presentation.viewmodel.CategoryTransactionsUiState
 import com.fino.app.presentation.viewmodel.CategoryTransactionsViewModel
+import com.fino.app.util.AmountFormatter
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,12 +40,13 @@ import java.time.format.DateTimeFormatter
 fun CategoryTransactionsScreen(
     onNavigateBack: () -> Unit,
     onTransactionClick: (Long) -> Unit = {},
+    onOpenMerchant: (String) -> Unit = {},
     viewModel: CategoryTransactionsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -141,8 +146,41 @@ fun CategoryTransactionsScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        if (uiState.monthlyBudget != null) {
+                            item {
+                                BudgetProgressCard(uiState)
+                            }
+                        }
+                        if (uiState.monthlyBars.isNotEmpty()) {
+                            item {
+                                MonthlyTrendCard(bars = uiState.monthlyBars)
+                            }
+                        }
+                        if (uiState.topMerchants.isNotEmpty()) {
+                            item {
+                                TopMerchantsHeader()
+                            }
+                            items(
+                                items = uiState.topMerchants,
+                                key = { "tm_${it.merchantKey}" }
+                            ) { row ->
+                                TopMerchantRow(
+                                    row = row,
+                                    onClick = { onOpenMerchant(row.merchantKey) }
+                                )
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Recent transactions",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
                         items(
                             items = uiState.transactions,
                             key = { it.id }
@@ -247,5 +285,157 @@ private fun TransactionRow(
                 color = style.iconColor
             )
         }
+    }
+}
+
+@Composable
+private fun BudgetProgressCard(state: CategoryTransactionsUiState) {
+    val limit = state.monthlyBudget ?: return
+    val pct = state.budgetPercent.coerceAtLeast(0f)
+    val barColor = if (state.isOverBudget) ExpenseRed else IncomeGreen
+    val remaining = (limit - state.thisMonthSpent).coerceAtLeast(0.0)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(DarkSurfaceVariant)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "This month",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextSecondary
+            )
+            val label = if (state.isOverBudget) "Over budget" else "${(pct * 100).toInt()}% used"
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = if (state.isOverBudget) ExpenseRed else TextSecondary
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "${AmountFormatter.format(state.thisMonthSpent)} of ${AmountFormatter.format(limit)}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        LinearProgressIndicator(
+            progress = { pct.coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = barColor,
+            trackColor = DarkSurfaceHigh
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = if (state.isOverBudget)
+                "Over by ${AmountFormatter.format(state.thisMonthSpent - limit)}"
+            else
+                "${AmountFormatter.format(remaining)} left",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (state.isOverBudget) ExpenseRed else TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun MonthlyTrendCard(bars: List<CategoryMonthlyBar>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(DarkSurfaceVariant)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "6-month trend",
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            bars.forEach { bar ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    val h = (bar.normalized.coerceAtLeast(0.05f) * 60).dp
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(h)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Primary.copy(alpha = 0.85f))
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = bar.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopMerchantsHeader() {
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        text = "Top merchants",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = TextPrimary
+    )
+}
+
+@Composable
+private fun TopMerchantRow(row: CategoryTopMerchantRow, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurfaceVariant)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.displayName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
+            Text(
+                text = if (row.count == 1) "1 visit" else "${row.count} visits",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextSecondary
+            )
+        }
+        Text(
+            text = AmountFormatter.format(row.amount),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
     }
 }

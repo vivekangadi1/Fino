@@ -52,6 +52,16 @@ data class CategorySpendingData(
 )
 
 /**
+ * Per-account balance row derived from transaction history
+ * until AccountEntity lands in Phase B.
+ */
+data class AccountRow(
+    val displayName: String,
+    val type: String,
+    val balance: Double
+)
+
+/**
  * UI state for Home screen
  */
 data class HomeUiState(
@@ -80,7 +90,9 @@ data class HomeUiState(
     val uncategorizedCount: Int = 0,
     val uncategorizedTransactions: List<Transaction> = emptyList(),
     // Budget forecast
-    val budgetForecast: BudgetForecast? = null
+    val budgetForecast: BudgetForecast? = null,
+    // Per-account balance rows
+    val accounts: List<AccountRow> = emptyList()
 ) {
     val hasUrgentBills: Boolean
         get() = (upcomingBillsSummary?.overdueCount ?: 0) > 0 ||
@@ -232,6 +244,8 @@ class HomeViewModel @Inject constructor(
                     txn.categoryId == null || txn.categoryId == 0L
                 }.sortedByDescending { it.transactionDate }
 
+                val accounts = deriveAccountRows(regularTransactions)
+
                 _uiState.update {
                     it.copy(
                         totalBalance = totalIncome - totalExpenses - totalSavings,
@@ -253,7 +267,8 @@ class HomeViewModel @Inject constructor(
                         periodSpending = periodTotal,
                         periodCategoryBreakdown = periodBreakdown,
                         uncategorizedCount = uncategorized.size,
-                        uncategorizedTransactions = uncategorized
+                        uncategorizedTransactions = uncategorized,
+                        accounts = accounts
                     )
                 }
             }
@@ -354,6 +369,41 @@ class HomeViewModel @Inject constructor(
             .sortedByDescending { it.amount }
 
         return Pair(totalSpending, categoryBreakdown)
+    }
+
+    /**
+     * Derive per-account balance rows from transaction history.
+     * Groups by (paymentMethod, bankName, cardLastFour) and computes
+     * credits minus debits per group. AccountEntity arrives in Phase B.
+     */
+    private fun deriveAccountRows(transactions: List<Transaction>): List<AccountRow> {
+        val grouped = transactions
+            .filter { !it.bankName.isNullOrBlank() || !it.paymentMethod.isNullOrBlank() }
+            .groupBy {
+                val method = it.paymentMethod?.uppercase() ?: "OTHER"
+                val bank = it.bankName?.uppercase() ?: "UNKNOWN"
+                val last4 = it.cardLastFour.orEmpty()
+                Triple(method, bank, last4)
+            }
+
+        return grouped.map { (key, txns) ->
+            val (method, bank, last4) = key
+            val credits = txns.filter { it.type == TransactionType.CREDIT }.sumOf { it.amount }
+            val debits = txns.filter { it.type == TransactionType.DEBIT }.sumOf { it.amount }
+            val balance = credits - debits
+            val methodLabel = when (method) {
+                "UPI" -> "UPI"
+                "CREDIT_CARD" -> if (last4.isNotBlank()) "Credit card •••${last4}" else "Credit card"
+                "CASH" -> "Cash"
+                else -> method.lowercase().replaceFirstChar { it.uppercase() }
+            }
+            val displayName = if (bank == "UNKNOWN") methodLabel else "$bank $methodLabel"
+            AccountRow(
+                displayName = displayName,
+                type = "${txns.size} transactions",
+                balance = balance
+            )
+        }.sortedByDescending { kotlin.math.abs(it.balance) }.take(6)
     }
 
     /**

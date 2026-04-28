@@ -238,8 +238,16 @@ object DatabaseModule {
             FinoDatabase::class.java,
             FinoDatabase.DATABASE_NAME
         )
+            .addMigrations(
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
+                FinoDatabase.MIGRATION_11_12,
+                FinoDatabase.MIGRATION_12_13
+            )
             .fallbackToDestructiveMigration()
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, FinoDatabase.MIGRATION_11_12)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -554,4 +562,19 @@ object DatabaseModule {
 
     @Provides
     fun providePatternSuggestionDao(database: FinoDatabase): PatternSuggestionDao = database.patternSuggestionDao()
+
+    @Provides
+    fun provideAccountDao(database: FinoDatabase): AccountDao = database.accountDao()
+
+    @Provides
+    fun provideBillDao(database: FinoDatabase): BillDao = database.billDao()
+
+    @Provides
+    fun provideEventMemberDao(database: FinoDatabase): EventMemberDao = database.eventMemberDao()
+
+    @Provides
+    fun provideCashbackRewardDao(database: FinoDatabase): CashbackRewardDao = database.cashbackRewardDao()
+
+    @Provides
+    fun provideNoticesDao(database: FinoDatabase): NoticesDao = database.noticesDao()
 }

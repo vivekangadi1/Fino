@@ -31,9 +31,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "ENABLE_GMAIL", "false")
         }
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "ENABLE_GMAIL", "false")
         }
     }
 
@@ -48,6 +50,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -117,6 +120,21 @@ dependencies {
     // CSV and PDF Export
     implementation("com.github.doyaaaaaken:kotlin-csv-jvm:1.9.2")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+    // Google Sign-In + Gmail API (gated behind BuildConfig.ENABLE_GMAIL at runtime;
+    // ships compiled-in so the feature flag is all that's needed to turn it on
+    // once OAuth consent verification is complete).
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.7.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.apis:google-api-services-gmail:v1-rev20220404-2.0.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.http-client:google-http-client-gson:1.44.2") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("org.jsoup:jsoup:1.17.2")
 
     // Testing - Unit Tests
     testImplementation("junit:junit:4.13.2")

@@ -4,11 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,10 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -37,7 +33,12 @@ import com.fino.app.domain.model.FamilyMember
 import com.fino.app.domain.model.PaymentMethod
 import com.fino.app.domain.model.PaymentStatus
 import com.fino.app.domain.model.TransactionType
-import com.fino.app.presentation.components.*
+import com.fino.app.presentation.components.primitives.Eyebrow
+import com.fino.app.presentation.components.primitives.FieldRow
+import com.fino.app.presentation.components.primitives.HairlineDivider
+import com.fino.app.presentation.components.primitives.Pill
+import com.fino.app.presentation.components.primitives.PillVariant
+import com.fino.app.presentation.components.primitives.SegmentedToggle
 import com.fino.app.presentation.theme.*
 import com.fino.app.presentation.viewmodel.AddTransactionViewModel
 import java.time.LocalDate
@@ -53,47 +54,38 @@ fun AddTransactionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showCategorySheet by remember { mutableStateOf(false) }
+    var showPaymentSheet by remember { mutableStateOf(false) }
 
-    // Navigate back on successful save or delete
     LaunchedEffect(uiState.saveSuccess, uiState.deleteSuccess) {
         if (uiState.saveSuccess || uiState.deleteSuccess) {
             onNavigateBack()
         }
     }
 
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Transaction", color = TextPrimary) },
-            text = {
-                Text(
-                    "Are you sure you want to delete this transaction? This action cannot be undone.",
-                    color = TextSecondary
-                )
-            },
+            title = { Text("Delete transaction", color = FinoColors.ink()) },
+            text = { Text("This can't be undone.", color = FinoColors.ink3()) },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteTransaction()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete", color = ExpenseRed)
-                }
+                TextButton(onClick = {
+                    viewModel.deleteTransaction()
+                    showDeleteDialog = false
+                }) { Text("Delete", color = FinoColors.negative()) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = FinoColors.ink3())
                 }
             },
-            containerColor = DarkSurface
+            containerColor = FinoColors.card()
         )
     }
 
-    Scaffold(
-        containerColor = DarkBackground
-    ) { paddingValues ->
+    Scaffold(containerColor = FinoColors.paper()) { paddingValues ->
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
@@ -101,7 +93,7 @@ fun AddTransactionScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Primary)
+                CircularProgressIndicator(color = FinoColors.accentColor())
             }
         } else {
             Column(
@@ -109,773 +101,667 @@ fun AddTransactionScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Header
-                TransactionHeader(
-                    onClose = onNavigateBack,
-                    transactionType = uiState.transactionType,
-                    onTypeChange = { viewModel.setTransactionType(it) },
-                    isEventExpense = uiState.isEventExpense,
-                    isEditMode = uiState.isEditMode,
-                    onDeleteClick = if (uiState.isEditMode) {
-                        { showDeleteDialog = true }
-                    } else null
+                TopBar(
+                    onCancel = onNavigateBack,
+                    isEdit = uiState.isEditMode,
+                    canSave = uiState.amount.isNotBlank() &&
+                            uiState.selectedCategoryId != null &&
+                            !uiState.isSaving,
+                    isSaving = uiState.isSaving,
+                    onSave = { viewModel.saveTransaction() },
+                    onDelete = if (uiState.isEditMode) { { showDeleteDialog = true } } else null
                 )
 
-            // Scrollable content for event expenses (more fields)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // Amount Section
-                AmountSection(
-                    amount = uiState.amount,
-                    onAmountChange = { viewModel.setAmount(it) },
-                    transactionType = uiState.transactionType
-                )
-
-                // Merchant Input (hidden if vendor selected in event expense mode)
-                if (!uiState.isEventExpense || uiState.selectedVendorId == null) {
-                    MerchantSection(
-                        merchant = uiState.merchant,
-                        onMerchantChange = { viewModel.setMerchant(it) }
-                    )
-                }
-
-                // Transaction Date Section
-                TransactionDateSection(
-                    transactionDate = uiState.transactionDate,
-                    onDateTimeChange = { viewModel.setTransactionDate(it) }
-                )
-
-                // Event Expense Fields (shown only when adding to an event)
-                if (uiState.isEventExpense) {
-                    EventExpenseSection(
-                        subCategories = uiState.subCategories,
-                        selectedSubCategoryId = uiState.selectedSubCategoryId,
-                        onSubCategorySelected = { viewModel.selectSubCategory(it) },
-                        vendors = viewModel.getFilteredVendors(),
-                        selectedVendorId = uiState.selectedVendorId,
-                        onVendorSelected = { viewModel.selectVendor(it) },
-                        familyMembers = uiState.familyMembers,
-                        selectedPaidBy = uiState.selectedPaidBy,
-                        onPaidBySelected = { viewModel.setPaidBy(it) },
-                        paymentStatus = uiState.paymentStatus,
-                        onPaymentStatusChanged = { viewModel.setPaymentStatus(it) },
-                        isAdvancePayment = uiState.isAdvancePayment,
-                        onAdvancePaymentChanged = { viewModel.setIsAdvancePayment(it) },
-                        dueDate = uiState.dueDate,
-                        onDueDateChanged = { viewModel.setDueDate(it) },
-                        expenseNotes = uiState.expenseNotes,
-                        onExpenseNotesChanged = { viewModel.setExpenseNotes(it) }
-                    )
-                }
-
-                // Category Grid (hidden for event expenses - auto-selected to "Other")
-                if (!uiState.isEventExpense) {
-                    CategorySection(
-                        selectedCategoryId = uiState.selectedCategoryId,
-                        categories = uiState.categories,
-                        onCategorySelected = { viewModel.selectCategory(it) }
-                    )
-                }
-
-                // Payment Method Selector
-                PaymentMethodSection(
-                    selectedPaymentMethod = uiState.selectedPaymentMethod,
-                    onPaymentMethodSelected = { viewModel.selectPaymentMethod(it) }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Error message
-            uiState.error?.let { error ->
-                Text(
-                    text = error,
-                    color = ExpenseRed,
-                    style = MaterialTheme.typography.bodySmall,
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-                // Save Button
-                SaveButton(
-                    enabled = uiState.amount.isNotBlank() && uiState.selectedCategoryId != null && !uiState.isSaving,
-                    isLoading = uiState.isSaving,
-                    isEditMode = uiState.isEditMode,
-                    onClick = { viewModel.saveTransaction() }
-                )
-            }
-        }
-    }
-}
-
-// Color for Savings type
-private val SavingsBlue = Color(0xFF4A90D9)
-
-@Composable
-private fun TransactionHeader(
-    onClose: () -> Unit,
-    transactionType: TransactionType,
-    onTypeChange: (TransactionType) -> Unit,
-    isEventExpense: Boolean = false,
-    isEditMode: Boolean = false,
-    onDeleteClick: (() -> Unit)? = null
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(DarkSurface, DarkBackground)
-                )
-            )
-            .padding(16.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Close Button
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(DarkSurfaceVariant)
-                        .clickable(onClick = onClose),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = TextPrimary
+                    AmountBlock(
+                        amount = uiState.amount,
+                        transactionType = uiState.transactionType,
+                        onAmountChange = { viewModel.setAmount(it) },
+                        onTypeChange = { viewModel.setTransactionType(it) }
                     )
-                }
 
-                Text(
-                    text = when {
-                        isEditMode && isEventExpense -> "Edit Event Expense"
-                        isEditMode -> "Edit Transaction"
-                        isEventExpense -> "Add Event Expense"
-                        else -> "Add Transaction"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
+                    if (uiState.merchant.isNotBlank() && uiState.selectedCategoryId != null) {
+                        val selectedCat = uiState.categories.find { it.id == uiState.selectedCategoryId }
+                        if (selectedCat != null) {
+                            SmartSuggestionCard(
+                                merchant = uiState.merchant,
+                                category = selectedCat.name,
+                                onKeep = { /* no-op; already kept */ },
+                                onChange = { showCategorySheet = true }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
 
-                // Delete button (only in edit mode) or spacer
-                if (onDeleteClick != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(ExpenseRed.copy(alpha = 0.2f))
-                            .clickable(onClick = onDeleteClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = ExpenseRed
+                    FieldStack(
+                        merchant = uiState.merchant,
+                        onMerchantClick = { /* opens inline editor below */ },
+                        category = uiState.categories.find { it.id == uiState.selectedCategoryId },
+                        onCategoryClick = { showCategorySheet = true },
+                        paymentMethod = uiState.selectedPaymentMethod,
+                        onPaymentClick = { showPaymentSheet = true },
+                        date = uiState.transactionDate,
+                        onDateClick = { showDatePicker = true },
+                        onTimeClick = { showTimePicker = true },
+                        note = uiState.expenseNotes,
+                        onNoteChange = { viewModel.setExpenseNotes(it) }
+                    )
+
+                    MerchantInlineEditor(
+                        merchant = uiState.merchant,
+                        onChange = { viewModel.setMerchant(it) }
+                    )
+
+                    if (uiState.isEventExpense) {
+                        EventExpenseInlineSection(
+                            subCategories = uiState.subCategories,
+                            selectedSubCategoryId = uiState.selectedSubCategoryId,
+                            onSubCategorySelected = { viewModel.selectSubCategory(it) },
+                            vendors = viewModel.getFilteredVendors(),
+                            selectedVendorId = uiState.selectedVendorId,
+                            onVendorSelected = { viewModel.selectVendor(it) },
+                            familyMembers = uiState.familyMembers,
+                            selectedPaidBy = uiState.selectedPaidBy,
+                            onPaidBySelected = { viewModel.setPaidBy(it) },
+                            paymentStatus = uiState.paymentStatus,
+                            onPaymentStatusChanged = { viewModel.setPaymentStatus(it) },
+                            isAdvancePayment = uiState.isAdvancePayment,
+                            onAdvancePaymentChanged = { viewModel.setIsAdvancePayment(it) },
+                            dueDate = uiState.dueDate,
+                            onDueDateChanged = { viewModel.setDueDate(it) }
                         )
                     }
-                } else {
-                    Spacer(modifier = Modifier.size(40.dp))
-                }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Type Toggle - 3 options
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                // Expense
-                TypeToggleButton(
-                    text = "Expense",
-                    isSelected = transactionType == TransactionType.DEBIT,
-                    selectedColor = ExpenseRed,
-                    onClick = { onTypeChange(TransactionType.DEBIT) },
-                    modifier = Modifier.weight(1f)
-                )
-                // Income
-                TypeToggleButton(
-                    text = "Income",
-                    isSelected = transactionType == TransactionType.CREDIT,
-                    selectedColor = IncomeGreen,
-                    onClick = { onTypeChange(TransactionType.CREDIT) },
-                    modifier = Modifier.weight(1f)
-                )
-                // Savings
-                TypeToggleButton(
-                    text = "Savings",
-                    isSelected = transactionType == TransactionType.SAVINGS,
-                    selectedColor = SavingsBlue,
-                    onClick = { onTypeChange(TransactionType.SAVINGS) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TypeToggleButton(
-    text: String,
-    isSelected: Boolean,
-    selectedColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) selectedColor else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) TextPrimary else TextSecondary
-        )
-    }
-}
-
-@Composable
-private fun AmountSection(
-    amount: String,
-    onAmountChange: (String) -> Unit,
-    transactionType: TransactionType
-) {
-    val questionText = when (transactionType) {
-        TransactionType.DEBIT -> "How much did you spend?"
-        TransactionType.CREDIT -> "How much did you earn?"
-        TransactionType.SAVINGS -> "How much did you save?"
-    }
-
-    val accentColor = when (transactionType) {
-        TransactionType.DEBIT -> ExpenseRed
-        TransactionType.CREDIT -> IncomeGreen
-        TransactionType.SAVINGS -> SavingsBlue
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = questionText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "₹",
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
-                BasicTextField(
-                    value = amount,
-                    onValueChange = { newValue ->
-                        // Only allow numbers and one decimal point
-                        val filtered = newValue.filter { it.isDigit() || it == '.' }
-                        if (filtered.count { it == '.' } <= 1) {
-                            onAmountChange(filtered)
-                        }
-                    },
-                    textStyle = TextStyle(
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        textAlign = TextAlign.Center
-                    ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    cursorBrush = SolidColor(Primary),
-                    modifier = Modifier.widthIn(min = 100.dp, max = 250.dp),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (amount.isEmpty()) {
-                                Text(
-                                    text = "0",
-                                    style = TextStyle(
-                                        fontSize = 48.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextTertiary
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
+                    uiState.error?.let { error ->
+                        Text(
+                            text = error,
+                            color = FinoColors.negative(),
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 12.dp),
+                            textAlign = TextAlign.Center
+                        )
                     }
-                )
+
+                    Spacer(Modifier.height(32.dp))
+                }
             }
         }
     }
-}
 
-@Composable
-private fun MerchantSection(
-    merchant: String,
-    onMerchantChange: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "Description",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
+    if (showCategorySheet) {
+        CategoryPickerSheet(
+            categories = uiState.categories,
+            selectedId = uiState.selectedCategoryId,
+            onSelect = {
+                viewModel.selectCategory(it)
+                showCategorySheet = false
+            },
+            onDismiss = { showCategorySheet = false }
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurfaceVariant)
-                .padding(16.dp)
-        ) {
-            BasicTextField(
-                value = merchant,
-                onValueChange = onMerchantChange,
-                textStyle = TextStyle(
-                    fontSize = 16.sp,
-                    color = TextPrimary
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(Primary),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (merchant.isEmpty()) {
-                            Text(
-                                text = "e.g., Swiggy, Amazon, Salary...",
-                                style = TextStyle(
-                                    fontSize = 16.sp,
-                                    color = TextTertiary
-                                )
-                            )
-                        }
-                        innerTextField()
-                    }
-                }
-            )
-        }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TransactionDateSection(
-    transactionDate: LocalDateTime,
-    onDateTimeChange: (LocalDateTime) -> Unit
-) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-
-    val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
-    val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
-
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "Date & Time",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
+    if (showPaymentSheet) {
+        PaymentPickerSheet(
+            selected = uiState.selectedPaymentMethod,
+            onSelect = {
+                viewModel.selectPaymentMethod(it)
+                showPaymentSheet = false
+            },
+            onDismiss = { showPaymentSheet = false }
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Date Picker Button
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { showDatePicker = true }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Date",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
-                    )
-                    Text(
-                        text = transactionDate.format(dateFormatter),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextPrimary
-                    )
-                }
-                Icon(
-                    Icons.Default.CalendarToday,
-                    contentDescription = "Select date",
-                    tint = Primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Time Picker Button
-            Row(
-                modifier = Modifier
-                    .weight(0.7f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { showTimePicker = true }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Time",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
-                    )
-                    Text(
-                        text = transactionDate.format(timeFormatter),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextPrimary
-                    )
-                }
-                Icon(
-                    Icons.Default.Schedule,
-                    contentDescription = "Select time",
-                    tint = Primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
     }
 
-    // Date Picker Dialog
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = transactionDate.toLocalDate().toEpochDay() * 86400000L
+            initialSelectedDateMillis = uiState.transactionDate.toLocalDate().toEpochDay() * 86400000L
         )
-
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val newDate = LocalDate.ofEpochDay(millis / 86400000L)
-                            onDateTimeChange(LocalDateTime.of(newDate, transactionDate.toLocalTime()))
-                        }
-                        showDatePicker = false
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val newDate = LocalDate.ofEpochDay(millis / 86400000L)
+                        viewModel.setTransactionDate(
+                            LocalDateTime.of(newDate, uiState.transactionDate.toLocalTime())
+                        )
                     }
-                ) {
-                    Text("OK", color = Primary)
-                }
+                    showDatePicker = false
+                }) { Text("OK", color = FinoColors.accentInk()) }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = FinoColors.ink3())
                 }
             },
-            colors = DatePickerDefaults.colors(
-                containerColor = DarkSurface
-            )
+            colors = DatePickerDefaults.colors(containerColor = FinoColors.card())
         ) {
-            DatePicker(
-                state = datePickerState,
-                colors = DatePickerDefaults.colors(
-                    containerColor = DarkSurface,
-                    titleContentColor = TextPrimary,
-                    headlineContentColor = TextPrimary,
-                    weekdayContentColor = TextSecondary,
-                    dayContentColor = TextPrimary,
-                    selectedDayContainerColor = Primary,
-                    selectedDayContentColor = TextPrimary,
-                    todayContentColor = Primary,
-                    todayDateBorderColor = Primary
-                )
-            )
+            DatePicker(state = datePickerState)
         }
     }
 
-    // Time Picker Dialog
     if (showTimePicker) {
         val timePickerState = rememberTimePickerState(
-            initialHour = transactionDate.hour,
-            initialMinute = transactionDate.minute,
+            initialHour = uiState.transactionDate.hour,
+            initialMinute = uiState.transactionDate.minute,
             is24Hour = false
         )
-
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = {
-                Text(
-                    text = "Select Time",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            },
+            title = { Text("Select time", color = FinoColors.ink()) },
             text = {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    TimePicker(
-                        state = timePickerState,
-                        colors = TimePickerDefaults.colors(
-                            clockDialColor = DarkSurfaceVariant,
-                            clockDialSelectedContentColor = TextPrimary,
-                            clockDialUnselectedContentColor = TextSecondary,
-                            selectorColor = Primary,
-                            containerColor = DarkSurface,
-                            periodSelectorBorderColor = Primary,
-                            periodSelectorSelectedContainerColor = Primary,
-                            periodSelectorUnselectedContainerColor = DarkSurfaceVariant,
-                            periodSelectorSelectedContentColor = TextPrimary,
-                            periodSelectorUnselectedContentColor = TextSecondary,
-                            timeSelectorSelectedContainerColor = Primary,
-                            timeSelectorUnselectedContainerColor = DarkSurfaceVariant,
-                            timeSelectorSelectedContentColor = TextPrimary,
-                            timeSelectorUnselectedContentColor = TextSecondary
-                        )
-                    )
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timePickerState)
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val newTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                        onDateTimeChange(LocalDateTime.of(transactionDate.toLocalDate(), newTime))
-                        showTimePicker = false
-                    }
-                ) {
-                    Text("OK", color = Primary)
-                }
+                TextButton(onClick = {
+                    val newTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                    viewModel.setTransactionDate(
+                        LocalDateTime.of(uiState.transactionDate.toLocalDate(), newTime)
+                    )
+                    showTimePicker = false
+                }) { Text("OK", color = FinoColors.accentInk()) }
             },
             dismissButton = {
                 TextButton(onClick = { showTimePicker = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = FinoColors.ink3())
                 }
             },
-            containerColor = DarkSurface
+            containerColor = FinoColors.card()
         )
     }
 }
 
 @Composable
-private fun CategorySection(
-    selectedCategoryId: Long?,
-    categories: List<com.fino.app.domain.model.Category>,
-    onCategorySelected: (Long) -> Unit
+private fun TopBar(
+    onCancel: () -> Unit,
+    isEdit: Boolean,
+    canSave: Boolean,
+    isSaving: Boolean,
+    onSave: () -> Unit,
+    onDelete: (() -> Unit)?
 ) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "Category",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Use categories from ViewModel if available, otherwise fall back to hardcoded list
-        val displayCategories = if (categories.isNotEmpty()) {
-            categories.map { cat ->
-                TransactionCategory(
-                    id = cat.id,
-                    name = cat.name,
-                    emoji = cat.emoji,
-                    color = getCategoryColor(cat.name)
-                )
-            }
-        } else {
-            transactionCategories
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.height(200.dp)
-        ) {
-            items(displayCategories) { category ->
-                CategoryItem(
-                    category = category,
-                    isSelected = selectedCategoryId == category.id,
-                    onClick = { onCategorySelected(category.id) }
-                )
-            }
-        }
-    }
-}
-
-private fun getCategoryColor(name: String): Color {
-    return when (name.lowercase()) {
-        "food" -> CategoryFood
-        "transport" -> CategoryTransport
-        "shopping" -> CategoryShopping
-        "health" -> CategoryHealth
-        "fun", "entertainment" -> CategoryEntertainment
-        "bills" -> CategoryBills
-        "education" -> CategoryEducation
-        "travel" -> CategoryTravel
-        "groceries" -> CategoryGroceries
-        "personal" -> CategoryPersonal
-        "salary" -> IncomeGreen
-        else -> CategoryOther
-    }
-}
-
-@Composable
-private fun CategoryItem(
-    category: TransactionCategory,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) category.color.copy(alpha = 0.2f) else DarkSurfaceVariant)
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) category.color else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = category.emoji,
-            fontSize = 24.sp
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = category.name,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isSelected) category.color else TextSecondary,
-            textAlign = TextAlign.Center,
-            maxLines = 1
-        )
-    }
-}
-
-@Composable
-private fun SaveButton(
-    enabled: Boolean,
-    isLoading: Boolean = false,
-    isEditMode: Boolean = false,
-    onClick: () -> Unit
-) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp)
+            .padding(top = 8.dp, start = 20.dp, end = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        BouncyButton(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            gradient = if (enabled) FinoGradients.Primary else Brush.linearGradient(
-                listOf(TextTertiary, TextTertiary)
-            ),
-            enabled = enabled && !isLoading
-        ) {
-            if (isLoading) {
+        Text(
+            text = "Cancel",
+            fontSize = 14.sp,
+            color = FinoColors.ink3(),
+            modifier = Modifier
+                .clickable(onClick = onCancel)
+                .padding(8.dp)
+        )
+        Text(
+            text = if (isEdit) "Edit transaction" else "New transaction",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = FinoColors.ink()
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onDelete != null) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = FinoColors.negative(),
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable(onClick = onDelete)
+                        .padding(6.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            if (isSaving) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = TextPrimary,
+                    modifier = Modifier.size(16.dp),
+                    color = FinoColors.accentInk(),
                     strokeWidth = 2.dp
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = "Save",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (canSave) FinoColors.accentInk() else FinoColors.ink4(),
+                modifier = Modifier
+                    .clickable(enabled = canSave, onClick = onSave)
+                    .padding(8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AmountBlock(
+    amount: String,
+    transactionType: TransactionType,
+    onAmountChange: (String) -> Unit,
+    onTypeChange: (TransactionType) -> Unit
+) {
+    val eyebrowLabel = when (transactionType) {
+        TransactionType.DEBIT -> "Expense"
+        TransactionType.CREDIT -> "Income"
+        TransactionType.SAVINGS -> "Savings"
+    }
+
+    val intPart = amount.substringBefore('.', amount).ifBlank { "0" }
+    val hasDecimal = amount.contains('.')
+    val decimalPart = if (hasDecimal) {
+        amount.substringAfter('.').take(2).padEnd(2, '0')
+    } else {
+        "00"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 40.dp, start = 24.dp, end = 24.dp, bottom = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Eyebrow(text = eyebrowLabel)
+        Spacer(Modifier.height(12.dp))
+
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "₹",
+                style = SerifSm.copy(color = FinoColors.ink3()),
+                modifier = Modifier.padding(end = 4.dp, bottom = 12.dp)
+            )
+            BasicTextField(
+                value = intPart.takeIf { it != "0" || amount.startsWith("0") } ?: "",
+                onValueChange = { raw ->
+                    val cleaned = raw.filter { it.isDigit() }
+                    val composed = if (hasDecimal) "$cleaned.$decimalPart" else cleaned
+                    onAmountChange(composed)
+                },
+                textStyle = SerifXL.copy(color = FinoColors.ink(), textAlign = TextAlign.Center),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                cursorBrush = SolidColor(FinoColors.accentColor()),
+                decorationBox = { inner ->
+                    Box {
+                        if (intPart.isBlank() || (intPart == "0" && !amount.startsWith("0"))) {
+                            Text("0", style = SerifXL, color = FinoColors.ink4())
+                        }
+                        inner()
+                    }
+                }
+            )
+            Text(
+                text = ".$decimalPart",
+                style = SerifMedium.copy(color = FinoColors.ink4()),
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        val options = listOf("Expense", "Income", "Savings")
+        val selectedIdx = when (transactionType) {
+            TransactionType.DEBIT -> 0
+            TransactionType.CREDIT -> 1
+            TransactionType.SAVINGS -> 2
+        }
+        SegmentedToggle(
+            options = options,
+            selectedIndex = selectedIdx,
+            onSelect = { idx ->
+                onTypeChange(
+                    when (idx) {
+                        0 -> TransactionType.DEBIT
+                        1 -> TransactionType.CREDIT
+                        else -> TransactionType.SAVINGS
+                    }
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun SmartSuggestionCard(
+    merchant: String,
+    category: String,
+    onKeep: () -> Unit,
+    onChange: () -> Unit
+) {
+    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(FinoColors.accentSoft())
+                .border(1.dp, FinoColors.accentColor().copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 7.dp)
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(FinoColors.accentColor())
+            )
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Saving...",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "${merchant.uppercase()} · matched",
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = FinoColors.accentInk()
                 )
-            } else {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = TextPrimary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    text = if (isEditMode) "Update Transaction" else "Save Transaction",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    text = "Category → $category. We'll keep it there.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = FinoColors.ink2()
                 )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill(text = "Keep", onClick = onKeep, variant = PillVariant.Solid)
+                    Pill(text = "Change category", onClick = onChange, variant = PillVariant.Default)
+                }
             }
         }
     }
 }
 
-data class TransactionCategory(
-    val id: Long,
-    val name: String,
-    val emoji: String,
-    val color: Color
-)
+@Composable
+private fun FieldStack(
+    merchant: String,
+    onMerchantClick: () -> Unit,
+    category: com.fino.app.domain.model.Category?,
+    onCategoryClick: () -> Unit,
+    paymentMethod: PaymentMethod?,
+    onPaymentClick: () -> Unit,
+    date: LocalDateTime,
+    onDateClick: () -> Unit,
+    onTimeClick: () -> Unit,
+    note: String,
+    onNoteChange: (String) -> Unit
+) {
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
 
-val transactionCategories = listOf(
-    TransactionCategory(1L, "Food", "🍔", CategoryFood),
-    TransactionCategory(2L, "Transport", "🚗", CategoryTransport),
-    TransactionCategory(3L, "Shopping", "🛍️", CategoryShopping),
-    TransactionCategory(4L, "Health", "💊", CategoryHealth),
-    TransactionCategory(5L, "Fun", "🎬", CategoryEntertainment),
-    TransactionCategory(6L, "Bills", "📱", CategoryBills),
-    TransactionCategory(7L, "Education", "📚", CategoryEducation),
-    TransactionCategory(8L, "Travel", "✈️", CategoryTravel),
-    TransactionCategory(9L, "Groceries", "🛒", CategoryGroceries),
-    TransactionCategory(10L, "Personal", "💅", CategoryPersonal),
-    TransactionCategory(11L, "Salary", "💰", IncomeGreen),
-    TransactionCategory(12L, "Other", "📦", CategoryOther)
-)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp)
+    ) {
+        HairlineDivider()
+        FieldRow(
+            label = "Merchant",
+            value = merchant.ifBlank { "Tap to enter merchant" },
+            valueMuted = merchant.isBlank(),
+            modifier = Modifier.padding(horizontal = 24.dp),
+            onClick = onMerchantClick
+        )
+        HairlineDivider()
+        FieldRow(
+            label = "Category",
+            value = category?.let { "${it.emoji} ${it.name}" } ?: "Select a category",
+            valueMuted = category == null,
+            swatchColor = category?.let { FinoColors.accentColor() },
+            modifier = Modifier.padding(horizontal = 24.dp),
+            onClick = onCategoryClick
+        )
+        HairlineDivider()
+        FieldRow(
+            label = "Account",
+            value = paymentMethod?.displayName ?: "Select payment",
+            valueMuted = paymentMethod == null,
+            rightTag = paymentMethod?.let { accountTag(it) },
+            modifier = Modifier.padding(horizontal = 24.dp),
+            onClick = onPaymentClick
+        )
+        HairlineDivider()
+        FieldRow(
+            label = "Date",
+            value = date.format(dateFormatter),
+            modifier = Modifier.padding(horizontal = 24.dp),
+            onClick = onDateClick
+        )
+        HairlineDivider()
 
-// ============================================================================
-// Event Expense Section
-// ============================================================================
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Note",
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = FinoColors.ink3(),
+                modifier = Modifier.width(80.dp)
+            )
+            BasicTextField(
+                value = note,
+                onValueChange = onNoteChange,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (note.isBlank()) FinoColors.ink4() else FinoColors.ink(),
+                    fontFamily = InterTight
+                ),
+                singleLine = true,
+                cursorBrush = SolidColor(FinoColors.accentColor()),
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    Box {
+                        if (note.isBlank()) {
+                            Text(
+                                "Add a note…",
+                                fontSize = 14.sp,
+                                color = FinoColors.ink4(),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        inner()
+                    }
+                }
+            )
+        }
+        HairlineDivider()
+    }
+}
+
+private fun accountTag(method: PaymentMethod): String = when (method) {
+    PaymentMethod.UPI -> "UPI"
+    PaymentMethod.CREDIT_CARD -> "Card"
+    PaymentMethod.DEBIT_CARD -> "Card"
+    PaymentMethod.CASH -> "Cash"
+    PaymentMethod.NET_BANKING -> "Bank"
+    PaymentMethod.OTHER -> "Other"
+}
+
+@Composable
+private fun MerchantInlineEditor(
+    merchant: String,
+    onChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        Eyebrow(text = "Edit merchant")
+        Spacer(Modifier.height(10.dp))
+        BasicTextField(
+            value = merchant,
+            onValueChange = onChange,
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = FinoColors.ink(),
+                fontFamily = InterTight
+            ),
+            singleLine = true,
+            cursorBrush = SolidColor(FinoColors.accentColor()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(FinoColors.cardTint())
+                .border(1.dp, FinoColors.line(), RoundedCornerShape(10.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            decorationBox = { inner ->
+                Box {
+                    if (merchant.isBlank()) {
+                        Text(
+                            "e.g., Swiggy, Amazon, Salary",
+                            fontSize = 14.sp,
+                            color = FinoColors.ink4()
+                        )
+                    }
+                    inner()
+                }
+            }
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EventExpenseSection(
+private fun CategoryPickerSheet(
+    categories: List<com.fino.app.domain.model.Category>,
+    selectedId: Long?,
+    onSelect: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = FinoColors.card(),
+        dragHandle = null
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp)
+        ) {
+            Eyebrow(text = "Category")
+            Spacer(Modifier.height(16.dp))
+            val list = if (categories.isNotEmpty()) categories else emptyList()
+            if (list.isEmpty()) {
+                Text(
+                    "No categories available",
+                    color = FinoColors.ink3(),
+                    fontSize = 13.sp
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(list, key = { it.id }) { cat ->
+                        val selected = cat.id == selectedId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (selected) FinoColors.accentSoft() else Color.Transparent
+                                )
+                                .clickable { onSelect(cat.id) }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(cat.emoji, fontSize = 18.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = cat.name,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (selected) FinoColors.accentInk() else FinoColors.ink()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PaymentPickerSheet(
+    selected: PaymentMethod?,
+    onSelect: (PaymentMethod?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val methods = listOf(
+        PaymentMethod.UPI to "📱",
+        PaymentMethod.CREDIT_CARD to "💳",
+        PaymentMethod.DEBIT_CARD to "💳",
+        PaymentMethod.CASH to "💵",
+        PaymentMethod.NET_BANKING to "🏦",
+        PaymentMethod.OTHER to "💰"
+    )
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = FinoColors.card(),
+        dragHandle = null
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp)
+        ) {
+            Eyebrow(text = "Account")
+            Spacer(Modifier.height(16.dp))
+            methods.forEach { (method, emoji) ->
+                val isSel = method == selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (isSel) FinoColors.accentSoft() else Color.Transparent
+                        )
+                        .clickable { onSelect(if (isSel) null else method) }
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(emoji, fontSize = 18.sp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = method.displayName,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSel) FinoColors.accentInk() else FinoColors.ink(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isSel) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = FinoColors.accentInk(),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventExpenseInlineSection(
     subCategories: List<EventSubCategory>,
     selectedSubCategoryId: Long?,
     onSubCategorySelected: (Long?) -> Unit,
@@ -890,574 +776,212 @@ private fun EventExpenseSection(
     isAdvancePayment: Boolean,
     onAdvancePaymentChanged: (Boolean) -> Unit,
     dueDate: LocalDate?,
-    onDueDateChanged: (LocalDate?) -> Unit,
-    expenseNotes: String,
-    onExpenseNotesChanged: (String) -> Unit
+    onDueDateChanged: (LocalDate?) -> Unit
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+    var showDueDatePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Section header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Event,
-                contentDescription = null,
-                tint = Primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Event Details",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-        }
+        Eyebrow(text = "Event details")
 
-        // Sub-category dropdown
         if (subCategories.isNotEmpty()) {
-            DropdownSelector(
-                label = "Sub-Category",
-                selectedValue = subCategories.find { it.id == selectedSubCategoryId }?.let { "${it.emoji} ${it.name}" },
-                placeholder = "Select sub-category",
-                options = subCategories.map { it.id to "${it.emoji} ${it.name}" },
-                onOptionSelected = { onSubCategorySelected(it) },
-                allowClear = true,
-                onClear = { onSubCategorySelected(null) }
-            )
+            Eyebrow(text = "Sub-category")
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                subCategories.forEach { sub ->
+                    val sel = sub.id == selectedSubCategoryId
+                    PickerRow(
+                        label = "${sub.emoji} ${sub.name}",
+                        selected = sel,
+                        onClick = { onSubCategorySelected(if (sel) null else sub.id) }
+                    )
+                }
+            }
         }
 
-        // Vendor dropdown
         if (vendors.isNotEmpty()) {
-            DropdownSelector(
-                label = "Vendor",
-                selectedValue = vendors.find { it.id == selectedVendorId }?.name,
-                placeholder = "Select vendor",
-                options = vendors.map { it.id to it.name },
-                onOptionSelected = { onVendorSelected(it) },
-                allowClear = true,
-                onClear = { onVendorSelected(null) }
-            )
+            Eyebrow(text = "Vendor")
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                vendors.forEach { vendor ->
+                    val sel = vendor.id == selectedVendorId
+                    PickerRow(
+                        label = vendor.name,
+                        selected = sel,
+                        onClick = { onVendorSelected(if (sel) null else vendor.id) }
+                    )
+                }
+            }
         }
 
-        // Paid By dropdown
         if (familyMembers.isNotEmpty()) {
-            DropdownSelectorString(
-                label = "Paid By",
-                selectedValue = selectedPaidBy,
-                placeholder = "Who paid?",
-                options = familyMembers.map { it.name },
-                onOptionSelected = { onPaidBySelected(it) }
-            )
+            Eyebrow(text = "Paid by")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                familyMembers.forEach { member ->
+                    val sel = member.name == selectedPaidBy
+                    Pill(
+                        text = member.name,
+                        onClick = { onPaidBySelected(if (sel) null else member.name) },
+                        variant = if (sel) PillVariant.Solid else PillVariant.Default
+                    )
+                }
+            }
         }
 
-        // Payment Status selector
-        PaymentStatusSelector(
-            selectedStatus = paymentStatus,
-            onStatusSelected = onPaymentStatusChanged
+        Eyebrow(text = "Payment status")
+        SegmentedToggle(
+            options = listOf("Paid", "Pending", "Partial"),
+            selectedIndex = when (paymentStatus) {
+                PaymentStatus.PAID -> 0
+                PaymentStatus.PENDING, PaymentStatus.OVERDUE -> 1
+                PaymentStatus.PARTIAL -> 2
+            },
+            onSelect = {
+                onPaymentStatusChanged(
+                    when (it) {
+                        0 -> PaymentStatus.PAID
+                        1 -> PaymentStatus.PENDING
+                        else -> PaymentStatus.PARTIAL
+                    }
+                )
+            }
         )
 
-        // Advance Payment toggle
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurfaceVariant)
+                .background(FinoColors.cardTint())
+                .border(1.dp, FinoColors.line(), RoundedCornerShape(12.dp))
                 .clickable { onAdvancePaymentChanged(!isAdvancePayment) }
-                .padding(16.dp),
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Advance Payment",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary
+                    text = "Advance payment",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = FinoColors.ink()
                 )
                 Text(
                     text = "Mark as partial/advance payment",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
+                    fontSize = 12.sp,
+                    color = FinoColors.ink3()
                 )
             }
             Switch(
                 checked = isAdvancePayment,
                 onCheckedChange = onAdvancePaymentChanged,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Primary,
-                    checkedTrackColor = Primary.copy(alpha = 0.5f),
-                    uncheckedThumbColor = TextTertiary,
-                    uncheckedTrackColor = DarkSurfaceHigh
+                    checkedThumbColor = FinoColors.paper(),
+                    checkedTrackColor = FinoColors.accentColor(),
+                    uncheckedThumbColor = FinoColors.paper(),
+                    uncheckedTrackColor = FinoColors.ink5()
                 )
             )
         }
 
-        // Due Date picker (shown for pending/partial payments)
         if (paymentStatus != PaymentStatus.PAID) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { showDatePicker = true }
-                    .padding(16.dp),
+                    .background(FinoColors.cardTint())
+                    .border(1.dp, FinoColors.line(), RoundedCornerShape(12.dp))
+                    .clickable { showDueDatePicker = true }
+                    .padding(14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
-                        text = "Due Date",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextPrimary
+                        text = "Due date",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = FinoColors.ink()
                     )
                     Text(
                         text = dueDate?.format(dateFormatter) ?: "Not set",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (dueDate != null) Info else TextSecondary
+                        fontSize = 12.sp,
+                        color = if (dueDate != null) FinoColors.accentInk() else FinoColors.ink3()
                     )
                 }
                 Icon(
-                    Icons.Default.CalendarToday,
+                    Icons.Outlined.CalendarToday,
                     contentDescription = "Select date",
-                    tint = Primary,
-                    modifier = Modifier.size(20.dp)
+                    tint = FinoColors.ink3(),
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
-            if (showDatePicker) {
-                val datePickerState = rememberDatePickerState(
+            if (showDueDatePicker) {
+                val dp = rememberDatePickerState(
                     initialSelectedDateMillis = dueDate?.toEpochDay()?.times(86400000L)
                         ?: System.currentTimeMillis()
                 )
-
                 DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
+                    onDismissRequest = { showDueDatePicker = false },
                     confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let { millis ->
-                                    onDueDateChanged(LocalDate.ofEpochDay(millis / 86400000L))
-                                }
-                                showDatePicker = false
+                        TextButton(onClick = {
+                            dp.selectedDateMillis?.let { millis ->
+                                onDueDateChanged(LocalDate.ofEpochDay(millis / 86400000L))
                             }
-                        ) {
-                            Text("OK", color = Primary)
-                        }
+                            showDueDatePicker = false
+                        }) { Text("OK", color = FinoColors.accentInk()) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
-                            Text("Cancel", color = TextSecondary)
+                        TextButton(onClick = { showDueDatePicker = false }) {
+                            Text("Cancel", color = FinoColors.ink3())
                         }
-                    }
-                ) {
-                    DatePicker(
-                        state = datePickerState,
-                        colors = DatePickerDefaults.colors(
-                            containerColor = DarkSurface,
-                            titleContentColor = TextPrimary,
-                            headlineContentColor = TextPrimary,
-                            weekdayContentColor = TextSecondary,
-                            dayContentColor = TextPrimary,
-                            selectedDayContainerColor = Primary,
-                            selectedDayContentColor = TextPrimary,
-                            todayContentColor = Primary,
-                            todayDateBorderColor = Primary
-                        )
-                    )
-                }
-            }
-        }
-
-        // Expense Notes
-        Column {
-            Text(
-                text = "Notes",
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .padding(16.dp)
-            ) {
-                BasicTextField(
-                    value = expenseNotes,
-                    onValueChange = onExpenseNotesChanged,
-                    textStyle = TextStyle(
-                        fontSize = 14.sp,
-                        color = TextPrimary
-                    ),
-                    cursorBrush = SolidColor(Primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 60.dp),
-                    decorationBox = { innerTextField ->
-                        Box {
-                            if (expenseNotes.isEmpty()) {
-                                Text(
-                                    text = "Add notes about this expense...",
-                                    style = TextStyle(
-                                        fontSize = 14.sp,
-                                        color = TextTertiary
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
-                )
+                    },
+                    colors = DatePickerDefaults.colors(containerColor = FinoColors.card())
+                ) { DatePicker(state = dp) }
             }
         }
     }
 }
 
 @Composable
-private fun PaymentStatusSelector(
-    selectedStatus: PaymentStatus,
-    onStatusSelected: (PaymentStatus) -> Unit
-) {
-    Column {
-        Text(
-            text = "Payment Status",
-            style = MaterialTheme.typography.labelMedium,
-            color = TextSecondary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurfaceVariant)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            PaymentStatus.values().filter { it != PaymentStatus.OVERDUE }.forEach { status ->
-                val isSelected = status == selectedStatus
-                val (color, label) = when (status) {
-                    PaymentStatus.PAID -> IncomeGreen to "Paid"
-                    PaymentStatus.PENDING -> Warning to "Pending"
-                    PaymentStatus.PARTIAL -> Info to "Partial"
-                    PaymentStatus.OVERDUE -> ExpenseRed to "Overdue"
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) color else Color.Transparent)
-                        .clickable { onStatusSelected(status) }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) DarkBackground else TextSecondary
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DropdownSelector(
+private fun PickerRow(
     label: String,
-    selectedValue: String?,
-    placeholder: String,
-    options: List<Pair<Long, String>>,
-    onOptionSelected: (Long) -> Unit,
-    allowClear: Boolean = false,
-    onClear: (() -> Unit)? = null
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = TextSecondary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { expanded = true }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedValue ?: placeholder,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (selectedValue != null) TextPrimary else TextTertiary,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Row {
-                    if (allowClear && selectedValue != null && onClear != null) {
-                        Icon(
-                            Icons.Default.Clear,
-                            contentDescription = "Clear",
-                            tint = TextSecondary,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable {
-                                    onClear()
-                                    expanded = false
-                                }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Icon(
-                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = TextSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(DarkSurfaceHigh)
-            ) {
-                options.forEach { (id, text) ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = text,
-                                color = TextPrimary
-                            )
-                        },
-                        onClick = {
-                            onOptionSelected(id)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DropdownSelectorString(
-    label: String,
-    selectedValue: String?,
-    placeholder: String,
-    options: List<String>,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = TextSecondary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { expanded = true }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedValue ?: placeholder,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (selectedValue != null) TextPrimary else TextTertiary,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(DarkSurfaceHigh)
-            ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = option,
-                                color = TextPrimary
-                            )
-                        },
-                        onClick = {
-                            onOptionSelected(option)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PaymentMethodSection(
-    selectedPaymentMethod: PaymentMethod?,
-    onPaymentMethodSelected: (PaymentMethod?) -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "Payment Method (Optional)",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Grid of payment method options
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PaymentMethodItem(
-                method = PaymentMethod.UPI,
-                isSelected = selectedPaymentMethod == PaymentMethod.UPI,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.UPI) null else PaymentMethod.UPI) },
-                modifier = Modifier.weight(1f)
-            )
-            PaymentMethodItem(
-                method = PaymentMethod.CREDIT_CARD,
-                isSelected = selectedPaymentMethod == PaymentMethod.CREDIT_CARD,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.CREDIT_CARD) null else PaymentMethod.CREDIT_CARD) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PaymentMethodItem(
-                method = PaymentMethod.DEBIT_CARD,
-                isSelected = selectedPaymentMethod == PaymentMethod.DEBIT_CARD,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.DEBIT_CARD) null else PaymentMethod.DEBIT_CARD) },
-                modifier = Modifier.weight(1f)
-            )
-            PaymentMethodItem(
-                method = PaymentMethod.CASH,
-                isSelected = selectedPaymentMethod == PaymentMethod.CASH,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.CASH) null else PaymentMethod.CASH) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PaymentMethodItem(
-                method = PaymentMethod.NET_BANKING,
-                isSelected = selectedPaymentMethod == PaymentMethod.NET_BANKING,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.NET_BANKING) null else PaymentMethod.NET_BANKING) },
-                modifier = Modifier.weight(1f)
-            )
-            PaymentMethodItem(
-                method = PaymentMethod.OTHER,
-                isSelected = selectedPaymentMethod == PaymentMethod.OTHER,
-                onClick = { onPaymentMethodSelected(if (selectedPaymentMethod == PaymentMethod.OTHER) null else PaymentMethod.OTHER) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PaymentMethodItem(
-    method: PaymentMethod,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val icon = when (method) {
-        PaymentMethod.UPI -> "📱"
-        PaymentMethod.CREDIT_CARD -> "💳"
-        PaymentMethod.DEBIT_CARD -> "💳"
-        PaymentMethod.CASH -> "💵"
-        PaymentMethod.NET_BANKING -> "🏦"
-        PaymentMethod.OTHER -> "💰"
-    }
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) Primary.copy(alpha = 0.2f) else DarkSurfaceVariant)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) FinoColors.accentSoft() else FinoColors.cardTint())
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) Primary else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
+                1.dp,
+                if (selected) FinoColors.accentColor() else FinoColors.line(),
+                RoundedCornerShape(10.dp)
             )
-            .clickable { onClick() }
-            .padding(12.dp),
-        contentAlignment = Alignment.Center
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = icon,
-                fontSize = 24.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = method.displayName,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected) Primary else TextSecondary,
-                textAlign = TextAlign.Center,
-                fontSize = 10.sp
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (selected) FinoColors.accentInk() else FinoColors.ink(),
+            modifier = Modifier.weight(1f)
+        )
+        if (selected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = FinoColors.accentInk(),
+                modifier = Modifier.size(16.dp)
             )
         }
     }

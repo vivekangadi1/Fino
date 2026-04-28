@@ -95,6 +95,13 @@ class RecurringRuleRepository @Inject constructor(
     }
 
     /**
+     * Bump lastOccurrence only if the given epoch date is strictly newer than what's stored.
+     */
+    suspend fun updateLastOccurrenceIfNewer(id: Long, dateEpochMillis: Long) {
+        dao.updateLastOccurrenceIfNewer(id, dateEpochMillis)
+    }
+
+    /**
      * Get the count of active recurring rules
      */
     suspend fun getActiveRuleCount(): Int {

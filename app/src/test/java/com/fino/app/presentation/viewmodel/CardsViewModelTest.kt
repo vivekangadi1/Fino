@@ -1,6 +1,8 @@
 package com.fino.app.presentation.viewmodel
 
 import com.fino.app.data.repository.CreditCardRepository
+import com.fino.app.data.repository.EMIRepository
+import com.fino.app.data.repository.LoanRepository
 import com.fino.app.domain.model.CreditCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,6 +24,8 @@ import java.time.LocalDateTime
 class CardsViewModelTest {
 
     private lateinit var mockCreditCardRepository: CreditCardRepository
+    private lateinit var mockEMIRepository: EMIRepository
+    private lateinit var mockLoanRepository: LoanRepository
     private lateinit var viewModel: CardsViewModel
 
     private val testDispatcher = StandardTestDispatcher()
@@ -63,8 +67,14 @@ class CardsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         mockCreditCardRepository = mock()
+        mockEMIRepository = mock()
+        mockLoanRepository = mock()
 
         whenever(mockCreditCardRepository.getActiveCardsFlow()).thenReturn(flowOf(testCards))
+        whenever(mockEMIRepository.getActiveEMIsFlow()).thenReturn(flowOf(emptyList()))
+        whenever(mockEMIRepository.getAllEMIsFlow()).thenReturn(flowOf(emptyList()))
+        whenever(mockLoanRepository.getActiveLoansFlow()).thenReturn(flowOf(emptyList()))
+        whenever(mockLoanRepository.getAllLoansFlow()).thenReturn(flowOf(emptyList()))
     }
 
     @After
@@ -73,7 +83,11 @@ class CardsViewModelTest {
     }
 
     private fun createViewModel(): CardsViewModel {
-        return CardsViewModel(creditCardRepository = mockCreditCardRepository)
+        return CardsViewModel(
+            creditCardRepository = mockCreditCardRepository,
+            emiRepository = mockEMIRepository,
+            loanRepository = mockLoanRepository
+        )
     }
 
     // Test 1: Initial state shows loading

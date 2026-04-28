@@ -1,45 +1,72 @@
 package com.fino.app.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.fino.app.domain.model.BillSource
 import com.fino.app.domain.model.Transaction
-import com.fino.app.domain.model.TransactionType
-import com.fino.app.presentation.components.*
-import com.fino.app.presentation.components.displayName
-import com.fino.app.presentation.theme.*
+import com.fino.app.domain.model.UpcomingBill
+import com.fino.app.presentation.components.FinoBottomNavBar
+import com.fino.app.presentation.components.primitives.Eyebrow
+import com.fino.app.presentation.components.primitives.IconBtn
+import com.fino.app.presentation.components.primitives.Mini
+import com.fino.app.presentation.components.primitives.ReviewItem
+import com.fino.app.presentation.components.primitives.UpcomingItem
+import com.fino.app.presentation.theme.FinoColors
+import com.fino.app.presentation.theme.Newsreader
+import com.fino.app.presentation.theme.NumericStyle
 import com.fino.app.presentation.viewmodel.HomeViewModel
-import com.fino.app.presentation.viewmodel.SmsScanViewModel
-import com.fino.app.presentation.viewmodel.SpendingPeriod
+import com.fino.app.util.AmountFormatter
+import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle as JavaTextStyle
+import java.time.temporal.ChronoUnit
+import java.util.Locale
+import kotlin.math.max
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val headerDateFormatter = DateTimeFormatter.ofPattern("EEEE \u00B7 MMM d")
+
 @Composable
 fun HomeScreen(
     onNavigateToCards: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToActivity: () -> Unit = {},
     onNavigateToRewards: () -> Unit,
     onAddTransaction: () -> Unit,
     onNavigateToUpcomingBills: () -> Unit,
@@ -51,1026 +78,518 @@ fun HomeScreen(
     onNavigateToReviewUncategorized: () -> Unit = {},
     onNavigateToPeriodTransactions: (Long, Long, String) -> Unit = { _, _, _ -> },
     onNavigateToTypeTransactions: (String, String) -> Unit = { _, _ -> },
-    viewModel: HomeViewModel = hiltViewModel(),
-    smsScanViewModel: SmsScanViewModel = hiltViewModel()
+    onNavigateToSettings: () -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val smsScanState by smsScanViewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     var currentRoute by remember { mutableStateOf("home") }
-    var showScanResultDialog by remember { mutableStateOf(false) }
-
-    // Show dialog when scan completes
-    LaunchedEffect(smsScanState.lastResult) {
-        if (smsScanState.lastResult != null && !smsScanState.isScanning) {
-            showScanResultDialog = true
-        }
-    }
-
-    // Scan result dialog
-    if (showScanResultDialog && smsScanState.lastResult != null) {
-        AlertDialog(
-            onDismissRequest = { showScanResultDialog = false },
-            title = { Text("SMS Scan Complete") },
-            text = {
-                val result = smsScanState.lastResult!!
-                Column {
-                    Text("Scanned ${result.totalSmsScanned} SMS messages")
-                    Text("Found ${result.transactionsFound} transactions")
-                    Text("Saved ${result.transactionsSaved} new transactions")
-                    if (result.duplicatesSkipped > 0) {
-                        Text("Skipped ${result.duplicatesSkipped} duplicates")
-                    }
-                    if (result.errors > 0) {
-                        Text("${result.errors} errors occurred", color = ExpenseRed)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showScanResultDialog = false
-                    viewModel.refresh() // Refresh home data
-                }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-
-    // Error dialog
-    if (smsScanState.error != null) {
-        AlertDialog(
-            onDismissRequest = { smsScanViewModel.clearError() },
-            title = { Text("Scan Error") },
-            text = { Text(smsScanState.error!!) },
-            confirmButton = {
-                TextButton(onClick = { smsScanViewModel.clearError() }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
 
     Scaffold(
-        containerColor = DarkBackground,
-        floatingActionButton = {
-            // Gradient FAB
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(FinoGradients.Primary)
-                    .clickable { onAddTransaction() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Transaction",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
+        containerColor = FinoColors.paper(),
         bottomBar = {
             FinoBottomNavBar(
                 currentRoute = currentRoute,
                 onNavigate = { route ->
                     currentRoute = route
                     when (route) {
+                        "activity" -> onNavigateToActivity()
+                        "insights" -> onNavigateToAnalytics()
                         "cards" -> onNavigateToCards()
-                        "analytics" -> onNavigateToAnalytics()
-                        "rewards" -> onNavigateToRewards()
                     }
-                }
+                },
+                onAddClick = onAddTransaction
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp)
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Gradient Header with Balance
+            item { HomeTopBar(onNavigateToSettings = onNavigateToSettings) }
             item {
-                ModernHeader(totalBalance = uiState.totalBalance)
-            }
-
-            // Quick Actions
-            item {
-                QuickActionsRow(
-                    onAddTransaction = onAddTransaction,
-                    onNavigateToAnalytics = onNavigateToAnalytics,
-                    onNavigateToEvents = onNavigateToEvents,
-                    onScanSms = { smsScanViewModel.scanCurrentMonth() },
-                    isScanning = smsScanState.isScanning
+                HomeHero(
+                    monthlySpent = state.monthlySpent,
+                    budget = BUDGET_PLACEHOLDER
                 )
             }
-
-            // Uncategorized Badge
-            if (uiState.uncategorizedCount > 0) {
-                item {
-                    UncategorizedSection(
-                        count = uiState.uncategorizedCount,
-                        onClick = onNavigateToReviewUncategorized
-                    )
-                }
-            }
-
-            // Stats Cards
             item {
-                ModernStatsSection(
-                    monthlySpent = uiState.monthlySpent,
-                    monthlyIncome = uiState.monthlyIncome,
-                    monthlySaved = uiState.monthlySaved,
-                    onSpentClick = { onNavigateToTypeTransactions("DEBIT", "Expenses") },
-                    onIncomeClick = { onNavigateToTypeTransactions("CREDIT", "Income") },
-                    onSavedClick = { onNavigateToTypeTransactions("SAVINGS", "Savings") }
+                HomeMiniGrid(
+                    monthlySpent = state.monthlySpent,
+                    monthlySaved = state.monthlySaved
                 )
             }
-
-            // Spending Tabs Section
             item {
-                SlideInCard(delay = 150) {
-                    SpendingTabsSection(
-                        selectedPeriod = uiState.selectedSpendingPeriod,
-                        periodSpending = uiState.periodSpending,
-                        categoryBreakdown = uiState.periodCategoryBreakdown,
-                        onPeriodSelected = { viewModel.selectSpendingPeriod(it) },
-                        onCategoryClick = { /* Navigate to category transactions */ },
-                        onTotalClick = { period ->
-                            val (startDate, endDate) = viewModel.getDateRangeForPeriod(period)
-                            onNavigateToPeriodTransactions(startDate, endDate, period.displayName)
-                        }
-                    )
-                }
-            }
-
-            // Events Section - always visible
-            item {
-                val activeEventSummary = uiState.activeEventSummary
-                if (uiState.hasActiveEvent && activeEventSummary != null) {
-                    ActiveEventSection(
-                        eventSummary = activeEventSummary,
-                        onViewAll = onNavigateToEvents,
-                        onEventClick = { onNavigateToEventDetail(activeEventSummary.event.id) }
-                    )
-                } else {
-                    EventsEmptySection(
-                        onCreateEvent = onNavigateToEvents
-                    )
-                }
-            }
-
-            // Upcoming Bills Section
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                UpcomingBillsSection(
-                    summary = uiState.upcomingBillsSummary,
-                    nextBills = uiState.nextBills,
-                    hasUrgentBills = uiState.hasUrgentBills,
-                    onViewAll = onNavigateToUpcomingBills,
-                    onAddBill = onAddRecurringBill,
+                HomeUpNext(
+                    bills = state.nextBills.take(3),
+                    onSeeAll = onNavigateToUpcomingBills,
                     onBillClick = { bill ->
-                        // Navigate to edit based on bill source
-                        when (bill.source) {
-                            BillSource.RECURRING_RULE -> onEditRecurringBill(bill.sourceId)
-                            else -> onNavigateToUpcomingBills() // For other sources, go to full list
-                        }
+                        if (bill.sourceId > 0) onEditRecurringBill(bill.sourceId)
+                        else onNavigateToUpcomingBills()
                     }
                 )
             }
-
-            // Recent Transactions
             item {
-                ModernTransactionsSection(
-                    transactions = uiState.recentTransactions,
-                    onSeeAll = onNavigateToAnalytics,
-                    onTransactionClick = onEditTransaction
+                HomeNeedsAGlance(
+                    count = state.uncategorizedCount,
+                    items = state.uncategorizedTransactions.take(2),
+                    onReviewAll = onNavigateToReviewUncategorized,
+                    onItemClick = onEditTransaction
                 )
             }
-
-            // Budget Health
             item {
-                ModernBudgetCard()
-            }
-
-            // Budget Forecast Summary
-            uiState.budgetForecast?.let { forecast ->
-                item {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "Next Month Forecast",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        SlideInCard(delay = 250) {
-                            CompactForecastCard(
-                                forecast = forecast,
-                                onViewDetails = onNavigateToAnalytics
-                            )
-                        }
-                    }
-                }
-            }
-
-            // XP Progress Teaser
-            item {
-                XpTeaserCard(
-                    currentLevel = uiState.currentLevel,
-                    levelName = uiState.levelName,
-                    xpProgress = uiState.xpProgress,
-                    totalXp = uiState.totalXp,
-                    onClick = onNavigateToRewards
+                HomeAccounts(
+                    totalBalance = state.totalBalance,
+                    accounts = state.accounts,
+                    onManage = onNavigateToCards
                 )
             }
         }
     }
 }
 
+// Hard-coded monthly budget placeholder until budget feature exists.
+private const val BUDGET_PLACEHOLDER = 120_000.0
+
 @Composable
-private fun ModernHeader(totalBalance: Double) {
-    Box(
+private fun HomeTopBar(onNavigateToSettings: () -> Unit = {}) {
+    val today = LocalDate.now()
+    val dateLabel = today.format(headerDateFormatter)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(DarkSurface, DarkBackground)
-                )
-            )
-            .padding(20.dp)
+            .padding(start = 24.dp, end = 18.dp, top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            // Greeting Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = getGreeting(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Welcome back!",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("👋", fontSize = 24.sp)
-                    }
-                }
+            Eyebrow(text = dateLabel)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Good ${timeOfDay()}",
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Medium,
+                color = FinoColors.ink()
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconBtn(icon = Icons.Outlined.Search, contentDescription = "Search", onClick = {})
+            IconBtn(
+                icon = Icons.Outlined.Settings,
+                contentDescription = "Settings",
+                onClick = onNavigateToSettings
+            )
+            IconBtn(
+                icon = Icons.Outlined.NotificationsNone,
+                contentDescription = "Notifications",
+                onClick = {},
+                showDot = true
+            )
+        }
+    }
+}
 
-                // Profile / Settings
+private fun timeOfDay(): String {
+    val hour = java.time.LocalTime.now().hour
+    return when {
+        hour < 12 -> "morning"
+        hour < 17 -> "afternoon"
+        else -> "evening"
+    }
+}
+
+@Composable
+private fun HomeHero(monthlySpent: Double, budget: Double) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 28.dp, bottom = 22.dp)
+    ) {
+        Eyebrow(text = "Spent this month")
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "\u20B9${formatAmount(monthlySpent)}",
+                fontFamily = Newsreader,
+                fontSize = 54.sp,
+                lineHeight = 56.sp,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = (-1.62).sp,
+                color = FinoColors.ink(),
+                style = NumericStyle
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "of \u20B9${formatAmount(budget)}",
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = FinoColors.ink3(),
+                style = NumericStyle,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        BudgetBar(spent = monthlySpent, budget = budget)
+        Spacer(Modifier.height(10.dp))
+        val usedPct = ((monthlySpent / budget) * 100).coerceIn(0.0, 100.0).toInt()
+        val daysLeft = max(
+            0,
+            YearMonth.now().lengthOfMonth() - LocalDate.now().dayOfMonth
+        )
+        val remaining = (budget - monthlySpent).coerceAtLeast(0.0)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${usedPct}% used \u00B7 $daysLeft days left",
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = FinoColors.ink3()
+            )
+            Text(
+                text = "\u20B9${formatAmount(remaining)} left",
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = FinoColors.ink2(),
+                style = NumericStyle
+            )
+        }
+    }
+}
+
+@Composable
+private fun BudgetBar(spent: Double, budget: Double) {
+    val chart = FinoColors.chart()
+    val ratio = (spent / budget).coerceIn(0.0, 1.0).toFloat()
+    val weights = listOf(0.40f, 0.26f, 0.20f, 0.14f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(FinoColors.paper3())
+    ) {
+        if (ratio > 0f) {
+            weights.forEachIndexed { i, w ->
+                val frac = (w * ratio).coerceAtLeast(0.0001f)
+                if (i > 0) Spacer(Modifier.width(1.dp))
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(DarkSurfaceVariant)
-                        .clickable { },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.Person,
-                        contentDescription = "Profile",
-                        tint = TextSecondary
-                    )
-                }
+                        .weight(frac)
+                        .height(6.dp)
+                        .background(chart[i])
+                )
             }
+        }
+        val rest = (1f - ratio).coerceAtLeast(0.0001f)
+        Box(modifier = Modifier.weight(rest))
+    }
+}
 
-            Spacer(modifier = Modifier.height(24.dp))
+@Composable
+private fun HomeMiniGrid(monthlySpent: Double, monthlySaved: Double) {
+    val daysInMonth = LocalDate.now().dayOfMonth.coerceAtLeast(1)
+    val dailyAvg = monthlySpent / daysInMonth
+    val forecast = dailyAvg * YearMonth.now().lengthOfMonth()
+    val forecastOnTrack = forecast <= BUDGET_PLACEHOLDER
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Mini(
+            label = "Daily avg",
+            value = "\u20B9${formatCompact(dailyAvg)}",
+            delta = "\u2212",
+            modifier = Modifier.weight(1f)
+        )
+        Mini(
+            label = "Forecast",
+            value = "\u20B9${formatCompact(forecast)}",
+            delta = if (forecastOnTrack) "On track" else "Over",
+            modifier = Modifier.weight(1f)
+        )
+        Mini(
+            label = "Saved",
+            value = "\u20B9${formatCompact(monthlySaved)}",
+            delta = "+",
+            positive = true,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
 
-            // Total Balance Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(FinoGradients.PrimaryDiagonal)
-                    .padding(24.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "Total Balance",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextPrimary.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    AnimatedCounter(
-                        targetValue = totalBalance.toInt(),
-                        style = MaterialTheme.typography.displaySmall,
-                        color = TextPrimary,
-                        prefix = "₹",
-                        formatAsRupees = true
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        PulsingDot(color = Success, size = 6.dp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Synced just now",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextPrimary.copy(alpha = 0.7f)
-                        )
-                    }
-                }
+@Composable
+private fun HomeUpNext(
+    bills: List<UpcomingBill>,
+    onSeeAll: () -> Unit,
+    onBillClick: (UpcomingBill) -> Unit
+) {
+    SectionHeader(
+        title = "Up next",
+        action = "See all",
+        onAction = onSeeAll
+    )
+    if (bills.isEmpty()) {
+        EmptyRow(text = "No upcoming bills")
+    } else {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            bills.forEach { bill ->
+                HorizontalLine()
+                val daysToDue = ChronoUnit.DAYS.between(LocalDate.now(), bill.dueDate)
+                val meta = buildBillMeta(bill, daysToDue)
+                UpcomingItem(
+                    name = bill.displayName.ifBlank { bill.merchantName },
+                    meta = meta,
+                    amount = "\u20B9${formatAmount(bill.amount)}",
+                    isDue = daysToDue in 0..2,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    onClick = { onBillClick(bill) }
+                )
             }
         }
     }
 }
 
-private fun getGreeting(): String {
-    val hour = java.time.LocalTime.now().hour
-    return when {
-        hour < 12 -> "Good Morning"
-        hour < 17 -> "Good Afternoon"
-        else -> "Good Evening"
+private fun buildBillMeta(bill: UpcomingBill, daysToDue: Long): String {
+    val phrase = when {
+        daysToDue < 0 -> "Overdue"
+        daysToDue == 0L -> "Due today"
+        daysToDue == 1L -> "Due tomorrow"
+        else -> "in $daysToDue days"
+    }
+    val channel = when (bill.source) {
+        com.fino.app.domain.model.BillSource.CREDIT_CARD -> "Card${bill.creditCardLastFour?.let { " \u00B7 $it" } ?: ""}"
+        com.fino.app.domain.model.BillSource.RECURRING_RULE -> "Subscription"
+        com.fino.app.domain.model.BillSource.PATTERN_SUGGESTION -> "Suggested"
+    }
+    return "$channel \u00B7 $phrase"
+}
+
+@Composable
+private fun HomeNeedsAGlance(
+    count: Int,
+    items: List<Transaction>,
+    onReviewAll: () -> Unit,
+    onItemClick: (Long) -> Unit
+) {
+    if (count == 0) return
+    SectionHeader(
+        title = "Needs a glance",
+        badge = count.toString(),
+        action = "Review all",
+        onAction = onReviewAll
+    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        items.forEach { txn ->
+            HorizontalLine()
+            val time = txn.transactionDate.format(
+                DateTimeFormatter.ofPattern("h:mm a").withLocale(Locale.ENGLISH)
+            )
+            val source = listOfNotNull(
+                txn.bankName,
+                txn.paymentMethod
+            ).joinToString(" \u00B7 ").ifBlank { "SMS" }
+            ReviewItem(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                merchant = txn.merchantNormalized ?: txn.merchantName.ifBlank { "Unknown" },
+                amount = "\u2212\u20B9${formatAmount(txn.amount)}",
+                meta = "$time \u00B7 $source",
+                hint = if (txn.needsReview) "New merchant. Pick a category." else "Looks unclassified",
+                action = "Categorize \u2192",
+                isUnmatched = true,
+                onHintClick = { onItemClick(txn.id) }
+            )
+        }
     }
 }
 
 @Composable
-private fun QuickActionsRow(
-    onAddTransaction: () -> Unit,
-    onNavigateToAnalytics: () -> Unit,
-    onNavigateToEvents: () -> Unit,
-    onScanSms: () -> Unit,
-    isScanning: Boolean
+private fun HomeAccounts(
+    totalBalance: Double,
+    accounts: List<com.fino.app.presentation.viewmodel.AccountRow>,
+    onManage: () -> Unit
+) {
+    SectionHeader(
+        title = "Accounts",
+        action = "Manage",
+        onAction = onManage
+    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalLine()
+        AccountTile(
+            name = "Total balance",
+            type = "Across all accounts",
+            balance = "\u20B9${formatAmount(totalBalance)}",
+            warn = totalBalance < 0
+        )
+        accounts.forEach { row ->
+            HorizontalLine()
+            AccountTile(
+                name = row.displayName,
+                type = row.type,
+                balance = "\u20B9${formatAmount(row.balance)}",
+                warn = row.balance < 0
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountTile(
+    name: String,
+    type: String,
+    balance: String,
+    warn: Boolean
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        QuickActionPill(
-            icon = Icons.Outlined.Add,
-            label = "Add",
-            onClick = onAddTransaction,
-            modifier = Modifier.weight(1f)
-        )
-        QuickActionPill(
-            icon = if (isScanning) Icons.Outlined.Sync else Icons.Outlined.Sms,
-            label = if (isScanning) "Scanning..." else "Scan SMS",
-            onClick = { if (!isScanning) onScanSms() },
-            modifier = Modifier.weight(1f),
-            isLoading = isScanning
-        )
-        QuickActionPill(
-            icon = Icons.Outlined.Analytics,
-            label = "Stats",
-            onClick = onNavigateToAnalytics,
-            modifier = Modifier.weight(1f)
-        )
-        QuickActionPill(
-            icon = Icons.Outlined.Event,
-            label = "Events",
-            onClick = onNavigateToEvents,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun QuickActionPill(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isLoading: Boolean = false
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
-            .clickable(enabled = !isLoading, onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = Primary,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = Primary,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary
-        )
-    }
-}
-
-// Savings gradient
-private val SavingsGradient = Brush.linearGradient(
-    colors = listOf(Color(0xFF4A90D9), Color(0xFF357ABD))
-)
-
-@Composable
-private fun ModernStatsSection(
-    monthlySpent: Double,
-    monthlyIncome: Double,
-    monthlySaved: Double,
-    onSpentClick: () -> Unit = {},
-    onIncomeClick: () -> Unit = {},
-    onSavedClick: () -> Unit = {}
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "This Month",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(FinoColors.paper2())
+                .border(1.dp, FinoColors.line(), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            // Expense Card
-            StatCard(
-                icon = Icons.AutoMirrored.Filled.TrendingDown,
-                label = "Spent",
-                amount = monthlySpent,
-                gradient = FinoGradients.Expense,
-                onClick = onSpentClick,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Income Card
-            StatCard(
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                label = "Income",
-                amount = monthlyIncome,
-                gradient = FinoGradients.Income,
-                onClick = onIncomeClick,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Saved Card
-            StatCard(
-                icon = Icons.Outlined.Savings,
-                label = "Saved",
-                amount = monthlySaved,
-                gradient = SavingsGradient,
-                onClick = onSavedClick,
-                modifier = Modifier.weight(1f)
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Outlined.CreditCard,
+                contentDescription = null,
+                tint = FinoColors.ink2(),
+                modifier = Modifier.size(16.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun StatCard(
-    icon: ImageVector,
-    label: String,
-    amount: Double,
-    gradient: Brush,
-    onClick: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
-            .background(gradient)
-            .padding(12.dp)
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = TextPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextPrimary.copy(alpha = 0.8f)
-                )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            AnimatedCounter(
-                targetValue = amount.toInt(),
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-                prefix = "₹",
-                formatAsRupees = true
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModernTransactionsSection(
-    transactions: List<Transaction>,
-    onSeeAll: () -> Unit,
-    onTransactionClick: (Long) -> Unit = {}
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Recent Transactions",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                text = name,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = FinoColors.ink(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onSeeAll() }
-            ) {
-                Text(
-                    text = "See All",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Primary
-                )
-                BouncingArrow(color = Primary)
-            }
+            Spacer(Modifier.height(1.dp))
+            Text(
+                text = type,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = FinoColors.ink3()
+            )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = balance,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (warn) FinoColors.negative() else FinoColors.ink(),
+            style = NumericStyle
+        )
+    }
+}
 
-        if (transactions.isEmpty()) {
-            // Empty State
-            SlideInCard(delay = 100) {
+@Composable
+private fun SectionHeader(
+    title: String,
+    action: String? = null,
+    badge: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Spacer(Modifier.height(32.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.13).sp,
+                color = FinoColors.ink()
+            )
+            if (badge != null) {
+                Spacer(Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(DarkSurfaceVariant)
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(FinoColors.accentColor())
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
-                    AnimatedEmptyState(
-                        emoji = "📭",
-                        title = "No transactions yet",
-                        subtitle = "Add your first transaction to get started"
+                    Text(
+                        text = badge,
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinoColors.paper()
                     )
                 }
             }
-        } else {
-            // Transaction List
-            transactions.forEachIndexed { index, transaction ->
-                SlideInCard(delay = 100 + (index * 50)) {
-                    TransactionRow(
-                        transaction = transaction,
-                        onClick = { onTransactionClick(transaction.id) }
-                    )
-                }
-                if (index < transactions.lastIndex) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
+        }
+        if (action != null) {
+            val actionMod = if (onAction != null) Modifier.clickable { onAction() } else Modifier
+            Text(
+                text = action,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = FinoColors.ink3(),
+                modifier = actionMod
+            )
         }
     }
 }
 
-// Blue color for Savings
-private val SavingsBlue = Color(0xFF4A90D9)
-
 @Composable
-private fun TransactionRow(
-    transaction: Transaction,
-    onClick: () -> Unit = {}
-) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, HH:mm") }
-
-    val (bgColor, iconColor, icon, prefix) = when (transaction.type) {
-        TransactionType.DEBIT -> Quad(
-            ExpenseRed.copy(alpha = 0.2f),
-            ExpenseRed,
-            Icons.AutoMirrored.Filled.TrendingDown,
-            "-"
-        )
-        TransactionType.CREDIT -> Quad(
-            IncomeGreen.copy(alpha = 0.2f),
-            IncomeGreen,
-            Icons.AutoMirrored.Filled.TrendingUp,
-            "+"
-        )
-        TransactionType.SAVINGS -> Quad(
-            SavingsBlue.copy(alpha = 0.2f),
-            SavingsBlue,
-            Icons.Outlined.Savings,
-            ""
-        )
-    }
-
+private fun HorizontalLine() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
-            .clickable { onClick() }
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(bgColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = transaction.merchantName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = TextPrimary
-                )
-                Text(
-                    text = transaction.transactionDate.format(dateFormatter),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Text(
-                text = "$prefix₹${String.format("%,.0f", transaction.amount)}",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = iconColor
-            )
-        }
-    }
+            .padding(horizontal = 24.dp)
+            .height(1.dp)
+            .background(FinoColors.line())
+    )
 }
 
-/**
- * Empty state section for Events when no active events exist.
- */
 @Composable
-private fun EventsEmptySection(
-    onCreateEvent: () -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Events",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            TextButton(onClick = onCreateEvent) {
-                Text(
-                    text = "View All",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Primary
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SlideInCard(delay = 150) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(DarkSurfaceVariant)
-                    .clickable { onCreateEvent() }
-                    .padding(20.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Event,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Track Event Expenses",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "Create an event to track trip, wedding, or renovation expenses",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Create Event",
-                        tint = TextTertiary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Helper data class for destructuring
-private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
-
-@Composable
-private fun UncategorizedSection(
-    count: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun EmptyRow(text: String) {
     Box(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Warning.copy(alpha = 0.12f))
-            .clickable(onClick = onClick)
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Warning.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Category,
-                    contentDescription = null,
-                    tint = Warning,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "$count Uncategorized",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Warning
-                )
-                Text(
-                    text = "Tap to categorize and improve tracking",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Review",
-                tint = Warning,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModernBudgetCard() {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Budget Health",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
+            text = text,
+            fontSize = 13.sp,
+            color = FinoColors.ink3()
         )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        SlideInCard(delay = 200) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(DarkSurfaceVariant, DarkSurfaceHigh)
-                        )
-                    )
-                    .clickable { }
-                    .padding(20.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Icon with glow
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Secondary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Outlined.AccountBalance,
-                            contentDescription = null,
-                            tint = Secondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Set up your first budget",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "Track spending by category",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = TextSecondary
-                    )
-                }
-            }
-        }
     }
 }
 
-@Composable
-private fun ActiveEventSection(
-    eventSummary: com.fino.app.domain.model.EventSummary,
-    onViewAll: () -> Unit,
-    onEventClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Active Event",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onViewAll() }
-            ) {
-                Text(
-                    text = "All Events",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Primary
-                )
-                BouncingArrow(color = Primary)
-            }
-        }
-        Spacer(modifier = Modifier.height(12.dp))
+private fun formatAmount(value: Double): String =
+    AmountFormatter.format(value)
 
-        SlideInCard(delay = 200) {
-            MinimalActiveEventCard(
-                eventSummary = eventSummary,
-                onClick = onEventClick
-            )
-        }
-    }
-}
-
-@Composable
-private fun XpTeaserCard(
-    currentLevel: Int,
-    levelName: String,
-    xpProgress: Float,
-    totalXp: Int,
-    onClick: () -> Unit
-) {
-    val nextLevelXp = currentLevel * 100
-
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        SlideInCard(delay = 300) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(FinoGradients.Gold)
-                    .clickable(onClick = onClick)
-                    .padding(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Level $currentLevel",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = DarkBackground
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            SparkleEffect()
-                        }
-                        Text(
-                            text = levelName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = DarkBackground.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AnimatedGradientProgress(
-                            progress = xpProgress,
-                            gradient = Brush.linearGradient(
-                                colors = listOf(DarkBackground.copy(alpha = 0.3f), DarkBackground.copy(alpha = 0.5f))
-                            ),
-                            backgroundColor = DarkBackground.copy(alpha = 0.2f),
-                            height = 6.dp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "$totalXp / $nextLevelXp XP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = DarkBackground.copy(alpha = 0.7f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    // Trophy icon
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(DarkBackground.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("🏆", fontSize = 28.sp)
-                    }
-                }
-            }
-        }
+private fun formatCompact(value: Double): String {
+    val abs = kotlin.math.abs(value)
+    return when {
+        abs >= 100_000.0 -> String.format(Locale.ENGLISH, "%.1fL", value / 100_000.0)
+        abs >= 1_000.0 -> String.format(Locale.ENGLISH, "%.1fk", value / 1_000.0)
+        else -> String.format(Locale.ENGLISH, "%,.0f", value)
     }
 }

@@ -4,8 +4,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.BudgetRepository
+import com.fino.app.data.repository.CashbackRewardRepository
 import com.fino.app.data.repository.CategoryRepository
+import com.fino.app.data.repository.CreditCardRepository
+import com.fino.app.data.repository.NoticesRepository
 import com.fino.app.data.repository.TransactionRepository
+import com.fino.app.domain.model.Notice
+import com.fino.app.service.notices.NoticesComputer
+import com.fino.app.domain.model.CreditCard
 import com.fino.app.domain.model.BudgetProgress
 import com.fino.app.domain.model.BudgetStatus
 import com.fino.app.domain.model.ExportFormat
@@ -27,6 +33,8 @@ import com.fino.app.domain.model.determineTrendDirection
 import com.fino.app.service.export.ExportService
 import com.fino.app.service.forecast.BudgetForecast
 import com.fino.app.service.forecast.ForecastService
+import com.fino.app.presentation.components.SpendingInsight
+import com.fino.app.presentation.components.generateSpendingInsights
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,8 +57,46 @@ import javax.inject.Inject
 enum class AnalyticsPeriod {
     WEEK,
     MONTH,
-    YEAR
+    THREE_MONTHS,
+    YEAR,
+    CUSTOM
 }
+
+/**
+ * Headline metric: SPEND (debit totals) vs NET (income − outgoing).
+ */
+enum class AnalyticsMetric { SPEND, NET }
+
+/**
+ * Route a Noticed card taps into. Maps 1:1 to Phase A detail screens.
+ */
+sealed class InsightRoute {
+    data class Merchant(val merchantKey: String) : InsightRoute()
+    data class Bill(val creditCardId: Long) : InsightRoute()
+    data class SubCategory(val categoryId: Long, val categoryName: String) : InsightRoute()
+    data class Day(val epochDay: Long) : InsightRoute()
+    object Subscriptions : InsightRoute()
+    object NewMerchants : InsightRoute()
+    object Weekend : InsightRoute()
+    object Compare : InsightRoute()
+}
+
+data class TrendBars(
+    val values: List<Float>,
+    val todayIndex: Int,
+    val leftLabel: String,
+    val midLabel: String,
+    val rightLabel: String,
+    val epochDays: List<Long?> = emptyList()
+)
+
+data class InsightItem(
+    val title: String,
+    val body: String,
+    val isWarn: Boolean = false,
+    val chartData: List<Float>? = null,
+    val route: InsightRoute? = null
+)
 
 /**
  * Category spending data for display
@@ -70,6 +116,10 @@ data class CategorySpending(
 data class AnalyticsUiState(
     val selectedPeriod: AnalyticsPeriod = AnalyticsPeriod.MONTH,
     val selectedDate: LocalDate = LocalDate.now(),
+    val customStart: LocalDate? = null,
+    val customEnd: LocalDate? = null,
+    val metric: AnalyticsMetric = AnalyticsMetric.SPEND,
+    val headlineAmount: Double = 0.0,
     val periodLabel: String = "",
     val canNavigateBackward: Boolean = true,
     val canNavigateForward: Boolean = false,
@@ -87,6 +137,11 @@ data class AnalyticsUiState(
     val paymentMethodTrend: PaymentMethodTrend? = null,
     val spendingHeatmapData: List<com.fino.app.presentation.components.MonthSpendingData> = emptyList(),
     val budgetForecast: BudgetForecast? = null,
+    val insights: List<SpendingInsight> = emptyList(),
+    val trendBars: TrendBars? = null,
+    val trendPercent: Float? = null,
+    val previousPeriodLabel: String = "",
+    val insightItems: List<InsightItem> = emptyList(),
     val isLoading: Boolean = true
 )
 
@@ -95,6 +150,10 @@ class AnalyticsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val budgetRepository: BudgetRepository,
+    private val creditCardRepository: CreditCardRepository,
+    private val cashbackRewardRepository: CashbackRewardRepository,
+    private val noticesRepository: NoticesRepository,
+    private val noticesComputer: NoticesComputer,
     private val exportService: ExportService,
     private val forecastService: ForecastService
 ) : ViewModel() {
@@ -129,19 +188,39 @@ class AnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 transactionRepository.getAllTransactionsFlow(),
-                categoryRepository.getAllActive()
-            ) { transactions, categories ->
-                Pair(transactions, categories)
-            }.collect { (transactions, categories) ->
+                categoryRepository.getAllActive(),
+                creditCardRepository.getActiveCardsFlow()
+            ) { transactions, categories, creditCards ->
+                Triple(transactions, categories, creditCards)
+            }.collect { (transactions, categories, creditCards) ->
                 // Cache all transactions for export
                 allTransactions = transactions
 
                 val period = _uiState.value.selectedPeriod
                 val selectedDate = _uiState.value.selectedDate
-                val filteredTransactions = filterByPeriod(transactions, period, selectedDate)
+                val customStart = _uiState.value.customStart
+                val customEnd = _uiState.value.customEnd
+                val metric = _uiState.value.metric
+                val filteredTransactions = filterByPeriod(transactions, period, selectedDate, customStart, customEnd)
+
+                val prevCustomStart: LocalDate?
+                val prevCustomEnd: LocalDate?
+                val previousDate: LocalDate
+                if (period == AnalyticsPeriod.CUSTOM && customStart != null && customEnd != null) {
+                    val duration = java.time.temporal.ChronoUnit.DAYS.between(customStart, customEnd) + 1
+                    prevCustomEnd = customStart.minusDays(1)
+                    prevCustomStart = customStart.minusDays(duration)
+                    previousDate = prevCustomStart
+                } else {
+                    prevCustomStart = null
+                    prevCustomEnd = null
+                    previousDate = previousPeriodReferenceDate(period, selectedDate)
+                }
+                val previousTransactions = filterByPeriod(transactions, period, previousDate, prevCustomStart, prevCustomEnd)
 
                 // Calculate period label
-                val periodLabel = formatPeriodLabel(period, selectedDate)
+                val periodLabel = formatPeriodLabel(period, selectedDate, customStart, customEnd)
+                val previousPeriodLabel = formatPeriodLabel(period, previousDate, prevCustomStart, prevCustomEnd)
 
                 // Calculate totals from DEBIT transactions only
                 val debitTransactions = filteredTransactions.filter { it.type == TransactionType.DEBIT }
@@ -149,6 +228,10 @@ class AnalyticsViewModel @Inject constructor(
                 val totalIncome = filteredTransactions
                     .filter { it.type == TransactionType.CREDIT }
                     .sumOf { it.amount }
+                val headlineAmount = when (metric) {
+                    AnalyticsMetric.SPEND -> totalSpent
+                    AnalyticsMetric.NET -> totalIncome - totalSpent
+                }
 
                 // Group by category and calculate breakdown
                 val categoryMap = categories.associateBy { it.id }
@@ -184,17 +267,62 @@ class AnalyticsViewModel @Inject constructor(
                 // Check for budget alerts
                 val budgetAlert = checkBudgetAlert(budgetProgress)
 
+                val categoryNameMap = categoryMap.mapValues { it.value.name }
+                val trendBars = buildTrendBars(filteredTransactions, period, selectedDate, metric, customStart, customEnd)
+                val prevDebitTotal = previousTransactions
+                    .filter { it.type == TransactionType.DEBIT }
+                    .sumOf { it.amount }
+                val prevCreditTotal = previousTransactions
+                    .filter { it.type == TransactionType.CREDIT }
+                    .sumOf { it.amount }
+                val prevHeadline = when (metric) {
+                    AnalyticsMetric.SPEND -> prevDebitTotal
+                    AnalyticsMetric.NET -> prevCreditTotal - prevDebitTotal
+                }
+                val trendPercent = if (kotlin.math.abs(prevHeadline) > 0.01) {
+                    (((headlineAmount - prevHeadline) / kotlin.math.abs(prevHeadline)) * 100).toFloat()
+                } else null
+                val cashbackPeriodKey = if (period == AnalyticsPeriod.CUSTOM && customStart != null && customEnd != null) {
+                    "custom-${customStart}-$customEnd"
+                } else {
+                    YearMonth.from(selectedDate).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                }
+                val cashbackTotal = cashbackRewardRepository.getTotalForPeriod(
+                    if (period == AnalyticsPeriod.CUSTOM) {
+                        YearMonth.from(selectedDate).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                    } else cashbackPeriodKey
+                )
+
+                val insightItems = loadOrComputeNotices(
+                    periodKey = cashbackPeriodKey,
+                    current = debitTransactions,
+                    previous = previousTransactions.filter { it.type == TransactionType.DEBIT },
+                    categoryNames = categoryNameMap,
+                    period = period,
+                    selectedDate = selectedDate,
+                    creditCards = creditCards,
+                    allTransactions = transactions,
+                    cashbackTotal = cashbackTotal,
+                    customStart = customStart,
+                    customEnd = customEnd
+                ).map { it.toInsightItem() }
+
                 _uiState.update {
                     it.copy(
                         periodLabel = periodLabel,
+                        previousPeriodLabel = previousPeriodLabel,
                         totalSpent = totalSpent,
                         totalIncome = totalIncome,
+                        headlineAmount = headlineAmount,
                         transactionCount = debitTransactions.size,
                         categoryBreakdown = categoryBreakdown,
                         paymentMethodBreakdown = paymentMethodBreakdown,
                         budgetProgress = budgetProgress,
                         showBudgetAlert = budgetAlert.first,
                         budgetAlertForCategory = budgetAlert.second,
+                        trendBars = trendBars,
+                        trendPercent = trendPercent,
+                        insightItems = insightItems,
                         isLoading = false
                     )
                 }
@@ -208,8 +336,18 @@ class AnalyticsViewModel @Inject constructor(
     private fun filterByPeriod(
         transactions: List<Transaction>,
         period: AnalyticsPeriod,
-        referenceDate: LocalDate
+        referenceDate: LocalDate,
+        customStart: LocalDate? = null,
+        customEnd: LocalDate? = null
     ): List<Transaction> {
+        if (period == AnalyticsPeriod.CUSTOM) {
+            val start = customStart ?: return emptyList()
+            val end = customEnd ?: return emptyList()
+            return transactions.filter { txn ->
+                val date = txn.transactionDate.toLocalDate()
+                !date.isBefore(start) && !date.isAfter(end)
+            }
+        }
         return transactions.filter { txn ->
             when (period) {
                 AnalyticsPeriod.WEEK -> {
@@ -225,9 +363,16 @@ class AnalyticsViewModel @Inject constructor(
                     val txnMonth = YearMonth.from(txn.transactionDate)
                     refMonth == txnMonth
                 }
+                AnalyticsPeriod.THREE_MONTHS -> {
+                    val endMonth = YearMonth.from(referenceDate)
+                    val startMonth = endMonth.minusMonths(2)
+                    val txnMonth = YearMonth.from(txn.transactionDate)
+                    !txnMonth.isBefore(startMonth) && !txnMonth.isAfter(endMonth)
+                }
                 AnalyticsPeriod.YEAR -> {
                     referenceDate.year == txn.transactionDate.year
                 }
+                AnalyticsPeriod.CUSTOM -> false
             }
         }
     }
@@ -394,6 +539,18 @@ class AnalyticsViewModel @Inject constructor(
         loadData()
     }
 
+    /**
+     * Switch between SPEND and NET headline metric.
+     * Re-runs loadData so trend/percent/headline all rebase.
+     */
+    fun setMetric(metric: AnalyticsMetric) {
+        if (_uiState.value.metric == metric) return
+        _uiState.update {
+            it.copy(metric = metric, isLoading = true)
+        }
+        loadData()
+    }
+
     fun refresh() {
         _uiState.update { it.copy(isLoading = true) }
         loadData()
@@ -415,11 +572,31 @@ class AnalyticsViewModel @Inject constructor(
      * Navigate to the previous period (previous week/month/year)
      */
     fun navigateToPreviousPeriod() {
-        val currentDate = _uiState.value.selectedDate
-        val newDate = when (_uiState.value.selectedPeriod) {
+        val state = _uiState.value
+        val currentDate = state.selectedDate
+        if (state.selectedPeriod == AnalyticsPeriod.CUSTOM &&
+            state.customStart != null && state.customEnd != null
+        ) {
+            val duration = java.time.temporal.ChronoUnit.DAYS.between(state.customStart, state.customEnd) + 1
+            val newStart = state.customStart.minusDays(duration)
+            val newEnd = state.customStart.minusDays(1)
+            _uiState.update {
+                it.copy(
+                    customStart = newStart,
+                    customEnd = newEnd,
+                    selectedDate = newStart,
+                    isLoading = true
+                )
+            }
+            loadData()
+            return
+        }
+        val newDate = when (state.selectedPeriod) {
             AnalyticsPeriod.WEEK -> currentDate.minusWeeks(1)
             AnalyticsPeriod.MONTH -> currentDate.minusMonths(1)
+            AnalyticsPeriod.THREE_MONTHS -> currentDate.minusMonths(3)
             AnalyticsPeriod.YEAR -> currentDate.minusYears(1)
+            AnalyticsPeriod.CUSTOM -> currentDate
         }
         updateSelectedDate(newDate)
     }
@@ -429,17 +606,57 @@ class AnalyticsViewModel @Inject constructor(
      * Only allowed if not in future
      */
     fun navigateToNextPeriod() {
-        val currentDate = _uiState.value.selectedDate
-        val newDate = when (_uiState.value.selectedPeriod) {
+        val state = _uiState.value
+        val currentDate = state.selectedDate
+        if (state.selectedPeriod == AnalyticsPeriod.CUSTOM &&
+            state.customStart != null && state.customEnd != null
+        ) {
+            val duration = java.time.temporal.ChronoUnit.DAYS.between(state.customStart, state.customEnd) + 1
+            val newStart = state.customEnd.plusDays(1)
+            val newEnd = state.customEnd.plusDays(duration)
+            if (!newEnd.isAfter(LocalDate.now())) {
+                _uiState.update {
+                    it.copy(
+                        customStart = newStart,
+                        customEnd = newEnd,
+                        selectedDate = newStart,
+                        isLoading = true
+                    )
+                }
+                loadData()
+            }
+            return
+        }
+        val newDate = when (state.selectedPeriod) {
             AnalyticsPeriod.WEEK -> currentDate.plusWeeks(1)
             AnalyticsPeriod.MONTH -> currentDate.plusMonths(1)
+            AnalyticsPeriod.THREE_MONTHS -> currentDate.plusMonths(3)
             AnalyticsPeriod.YEAR -> currentDate.plusYears(1)
+            AnalyticsPeriod.CUSTOM -> currentDate
         }
 
         // Only navigate if the new period is not in the future
-        if (!isPeriodInFuture(newDate, _uiState.value.selectedPeriod)) {
+        if (!isPeriodInFuture(newDate, state.selectedPeriod)) {
             updateSelectedDate(newDate)
         }
+    }
+
+    /**
+     * Switch to CUSTOM period with an explicit date range.
+     */
+    fun setCustomRange(start: LocalDate, end: LocalDate) {
+        val (normStart, normEnd) = if (start.isAfter(end)) end to start else start to end
+        _uiState.update {
+            it.copy(
+                selectedPeriod = AnalyticsPeriod.CUSTOM,
+                customStart = normStart,
+                customEnd = normEnd,
+                selectedDate = normStart,
+                isLoading = true
+            )
+        }
+        updateNavigationButtons()
+        loadData()
     }
 
     /**
@@ -526,8 +743,15 @@ class AnalyticsViewModel @Inject constructor(
             AnalyticsPeriod.MONTH -> {
                 YearMonth.from(date) > YearMonth.from(now)
             }
+            AnalyticsPeriod.THREE_MONTHS -> {
+                YearMonth.from(date) > YearMonth.from(now)
+            }
             AnalyticsPeriod.YEAR -> {
                 date.year > now.year
+            }
+            AnalyticsPeriod.CUSTOM -> {
+                val end = _uiState.value.customEnd
+                end != null && end.isAfter(now)
             }
         }
     }
@@ -535,7 +759,12 @@ class AnalyticsViewModel @Inject constructor(
     /**
      * Format period label for display
      */
-    private fun formatPeriodLabel(period: AnalyticsPeriod, date: LocalDate): String {
+    private fun formatPeriodLabel(
+        period: AnalyticsPeriod,
+        date: LocalDate,
+        customStart: LocalDate? = null,
+        customEnd: LocalDate? = null
+    ): String {
         return when (period) {
             AnalyticsPeriod.WEEK -> {
                 val weekFields = WeekFields.of(Locale.getDefault())
@@ -545,8 +774,29 @@ class AnalyticsViewModel @Inject constructor(
             AnalyticsPeriod.MONTH -> {
                 date.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
             }
+            AnalyticsPeriod.THREE_MONTHS -> {
+                val endMonth = YearMonth.from(date)
+                val startMonth = endMonth.minusMonths(2)
+                val monthFmt = DateTimeFormatter.ofPattern("MMM")
+                if (startMonth.year == endMonth.year) {
+                    "${startMonth.format(monthFmt)} – ${endMonth.format(monthFmt)} ${endMonth.year}"
+                } else {
+                    "${startMonth.format(monthFmt)} ${startMonth.year} – ${endMonth.format(monthFmt)} ${endMonth.year}"
+                }
+            }
             AnalyticsPeriod.YEAR -> {
                 date.year.toString()
+            }
+            AnalyticsPeriod.CUSTOM -> {
+                if (customStart == null || customEnd == null) "Custom range"
+                else {
+                    val dayFmt = DateTimeFormatter.ofPattern("MMM d")
+                    if (customStart.year == customEnd.year) {
+                        "${customStart.format(dayFmt)} – ${customEnd.format(dayFmt)}, ${customEnd.year}"
+                    } else {
+                        "${customStart.format(dayFmt)}, ${customStart.year} – ${customEnd.format(dayFmt)}, ${customEnd.year}"
+                    }
+                }
             }
         }
     }
@@ -615,16 +865,28 @@ class AnalyticsViewModel @Inject constructor(
                 val lastDay = yearMonth.atEndOfMonth()
                 Pair(firstDay, lastDay)
             }
+            AnalyticsPeriod.THREE_MONTHS -> {
+                val endMonth = YearMonth.from(selectedDate)
+                val startMonth = endMonth.minusMonths(2)
+                Pair(startMonth.atDay(1), endMonth.atEndOfMonth())
+            }
             AnalyticsPeriod.YEAR -> {
                 val year = selectedDate.year
                 val firstDay = LocalDate.of(year, 1, 1)
                 val lastDay = LocalDate.of(year, 12, 31)
                 Pair(firstDay, lastDay)
             }
+            AnalyticsPeriod.CUSTOM -> {
+                val start = _uiState.value.customStart ?: selectedDate
+                val end = _uiState.value.customEnd ?: selectedDate
+                Pair(start, end)
+            }
         }
 
         // Filter transactions for the period
-        val filteredTransactions = filterByPeriod(allTransactions, selectedPeriod, selectedDate)
+        val customStart = _uiState.value.customStart
+        val customEnd = _uiState.value.customEnd
+        val filteredTransactions = filterByPeriod(allTransactions, selectedPeriod, selectedDate, customStart, customEnd)
 
         // Create export request
         val request = ExportRequest(
@@ -725,6 +987,286 @@ class AnalyticsViewModel @Inject constructor(
             it.copy(budgetForecast = forecast)
         }
     }
+
+    private fun previousPeriodReferenceDate(period: AnalyticsPeriod, date: LocalDate): LocalDate {
+        return when (period) {
+            AnalyticsPeriod.WEEK -> date.minusWeeks(1)
+            AnalyticsPeriod.MONTH -> date.minusMonths(1)
+            AnalyticsPeriod.THREE_MONTHS -> date.minusMonths(3)
+            AnalyticsPeriod.YEAR -> date.minusYears(1)
+            AnalyticsPeriod.CUSTOM -> date
+        }
+    }
+
+    private fun buildTrendBars(
+        transactions: List<Transaction>,
+        period: AnalyticsPeriod,
+        referenceDate: LocalDate,
+        metric: AnalyticsMetric = AnalyticsMetric.SPEND,
+        customStart: LocalDate? = null,
+        customEnd: LocalDate? = null
+    ): TrendBars {
+        val debit = transactions.filter { it.type == TransactionType.DEBIT }
+        val credit = transactions.filter { it.type == TransactionType.CREDIT }
+        val today = LocalDate.now()
+        // dayBucket(day) = SPEND: sum of debits on day; NET: credits − debits on day
+        fun dayBucket(day: LocalDate): Float {
+            val out = debit.filter { it.transactionDate.toLocalDate() == day }.sumOf { it.amount }
+            return when (metric) {
+                AnalyticsMetric.SPEND -> out.toFloat()
+                AnalyticsMetric.NET -> {
+                    val inc = credit.filter { it.transactionDate.toLocalDate() == day }.sumOf { it.amount }
+                    (inc - out).toFloat()
+                }
+            }
+        }
+        return when (period) {
+            AnalyticsPeriod.WEEK -> {
+                val weekFields = WeekFields.of(Locale.getDefault())
+                val startOfWeek = referenceDate.with(weekFields.dayOfWeek(), 1)
+                val values = List(7) { i ->
+                    val day = startOfWeek.plusDays(i.toLong())
+                    dayBucket(day)
+                }
+                val epochDays: List<Long?> = List(7) { i -> startOfWeek.plusDays(i.toLong()).toEpochDay() }
+                val todayIdx = if (today.isBefore(startOfWeek) || today.isAfter(startOfWeek.plusDays(6))) -1
+                else java.time.temporal.ChronoUnit.DAYS.between(startOfWeek, today).toInt()
+                TrendBars(
+                    values = values,
+                    todayIndex = todayIdx,
+                    leftLabel = "Mon",
+                    midLabel = "Thu",
+                    rightLabel = "Sun",
+                    epochDays = epochDays
+                )
+            }
+            AnalyticsPeriod.MONTH -> {
+                val ym = YearMonth.from(referenceDate)
+                val days = ym.lengthOfMonth()
+                val values = List(days) { i ->
+                    val day = ym.atDay(i + 1)
+                    dayBucket(day)
+                }
+                val epochDays: List<Long?> = List(days) { i -> ym.atDay(i + 1).toEpochDay() }
+                val todayIdx = if (YearMonth.from(today) != ym) -1 else today.dayOfMonth - 1
+                val monthFmt = DateTimeFormatter.ofPattern("MMM")
+                val monthStr = ym.atDay(1).format(monthFmt)
+                TrendBars(
+                    values = values,
+                    todayIndex = todayIdx,
+                    leftLabel = "$monthStr 1",
+                    midLabel = "$monthStr 15",
+                    rightLabel = "$monthStr $days",
+                    epochDays = epochDays
+                )
+            }
+            AnalyticsPeriod.THREE_MONTHS -> {
+                val endMonth = YearMonth.from(referenceDate)
+                val startMonth = endMonth.minusMonths(2)
+                val startDate = startMonth.atDay(1)
+                val totalDays = java.time.temporal.ChronoUnit.DAYS
+                    .between(startDate, endMonth.atEndOfMonth()).toInt() + 1
+                val bucketCount = 12
+                val daysPerBucket = totalDays.toFloat() / bucketCount
+                val values = MutableList(bucketCount) { 0f }
+                fun accum(txns: List<Transaction>, sign: Float) {
+                    txns.forEach { txn ->
+                        val txDate = txn.transactionDate.toLocalDate()
+                        if (txDate.isBefore(startDate) || txDate.isAfter(endMonth.atEndOfMonth())) return@forEach
+                        val daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(startDate, txDate).toInt()
+                        val idx = (daysFromStart / daysPerBucket).toInt().coerceIn(0, bucketCount - 1)
+                        values[idx] = values[idx] + sign * txn.amount.toFloat()
+                    }
+                }
+                accum(debit, if (metric == AnalyticsMetric.SPEND) 1f else -1f)
+                if (metric == AnalyticsMetric.NET) accum(credit, 1f)
+                val todayIdx = if (YearMonth.from(today).isBefore(startMonth) ||
+                    YearMonth.from(today).isAfter(endMonth)) -1
+                else {
+                    val d = java.time.temporal.ChronoUnit.DAYS.between(startDate, today).toInt()
+                    (d / daysPerBucket).toInt().coerceIn(0, bucketCount - 1)
+                }
+                val monthFmt = DateTimeFormatter.ofPattern("MMM")
+                TrendBars(
+                    values = values,
+                    todayIndex = todayIdx,
+                    leftLabel = startMonth.atDay(1).format(monthFmt),
+                    midLabel = startMonth.plusMonths(1).atDay(1).format(monthFmt),
+                    rightLabel = endMonth.atDay(1).format(monthFmt)
+                )
+            }
+            AnalyticsPeriod.YEAR -> {
+                val year = referenceDate.year
+                val values = List(12) { i ->
+                    val ym = YearMonth.of(year, i + 1)
+                    val out = debit.filter { YearMonth.from(it.transactionDate) == ym }.sumOf { it.amount }
+                    when (metric) {
+                        AnalyticsMetric.SPEND -> out.toFloat()
+                        AnalyticsMetric.NET -> {
+                            val inc = credit.filter { YearMonth.from(it.transactionDate) == ym }.sumOf { it.amount }
+                            (inc - out).toFloat()
+                        }
+                    }
+                }
+                val todayIdx = if (today.year != year) -1 else today.monthValue - 1
+                TrendBars(
+                    values = values,
+                    todayIndex = todayIdx,
+                    leftLabel = "Jan",
+                    midLabel = "Jul",
+                    rightLabel = "Dec"
+                )
+            }
+            AnalyticsPeriod.CUSTOM -> {
+                if (customStart == null || customEnd == null) {
+                    TrendBars(
+                        values = emptyList(),
+                        todayIndex = -1,
+                        leftLabel = "",
+                        midLabel = "",
+                        rightLabel = ""
+                    )
+                } else {
+                    val totalDays = (java.time.temporal.ChronoUnit.DAYS.between(customStart, customEnd).toInt() + 1)
+                        .coerceAtLeast(1)
+                    val dayFmt = DateTimeFormatter.ofPattern("MMM d")
+                    if (totalDays <= 62) {
+                        // Daily bars
+                        val values = List(totalDays) { i -> dayBucket(customStart.plusDays(i.toLong())) }
+                        val epochDays: List<Long?> = List(totalDays) { i -> customStart.plusDays(i.toLong()).toEpochDay() }
+                        val todayIdx = if (today.isBefore(customStart) || today.isAfter(customEnd)) -1
+                        else java.time.temporal.ChronoUnit.DAYS.between(customStart, today).toInt()
+                        val midDate = customStart.plusDays(totalDays / 2L)
+                        TrendBars(
+                            values = values,
+                            todayIndex = todayIdx,
+                            leftLabel = customStart.format(dayFmt),
+                            midLabel = midDate.format(dayFmt),
+                            rightLabel = customEnd.format(dayFmt),
+                            epochDays = epochDays
+                        )
+                    } else {
+                        // Weekly bucket bars when range exceeds ~2 months
+                        val bucketCount = 20.coerceAtMost(totalDays)
+                        val daysPerBucket = totalDays.toFloat() / bucketCount
+                        val values = MutableList(bucketCount) { 0f }
+                        fun accum(txns: List<Transaction>, sign: Float) {
+                            txns.forEach { txn ->
+                                val txDate = txn.transactionDate.toLocalDate()
+                                if (txDate.isBefore(customStart) || txDate.isAfter(customEnd)) return@forEach
+                                val daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(customStart, txDate).toInt()
+                                val idx = (daysFromStart / daysPerBucket).toInt().coerceIn(0, bucketCount - 1)
+                                values[idx] = values[idx] + sign * txn.amount.toFloat()
+                            }
+                        }
+                        accum(debit, if (metric == AnalyticsMetric.SPEND) 1f else -1f)
+                        if (metric == AnalyticsMetric.NET) accum(credit, 1f)
+                        val todayIdx = if (today.isBefore(customStart) || today.isAfter(customEnd)) -1
+                        else {
+                            val d = java.time.temporal.ChronoUnit.DAYS.between(customStart, today).toInt()
+                            (d / daysPerBucket).toInt().coerceIn(0, bucketCount - 1)
+                        }
+                        TrendBars(
+                            values = values,
+                            todayIndex = todayIdx,
+                            leftLabel = customStart.format(dayFmt),
+                            midLabel = customStart.plusDays(totalDays / 2L).format(dayFmt),
+                            rightLabel = customEnd.format(dayFmt)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Loads notices for the given period from cache. If the cache is empty or stale
+     * (>24h), recomputes inline via NoticesComputer, overwrites the cache, and returns
+     * the fresh result. This keeps Insights snappy while also handling first-install
+     * and long-idle scenarios gracefully.
+     */
+    private suspend fun loadOrComputeNotices(
+        periodKey: String,
+        current: List<Transaction>,
+        previous: List<Transaction>,
+        categoryNames: Map<Long, String>,
+        period: AnalyticsPeriod,
+        selectedDate: LocalDate,
+        creditCards: List<CreditCard>,
+        allTransactions: List<Transaction>,
+        cashbackTotal: Double,
+        customStart: LocalDate? = null,
+        customEnd: LocalDate? = null
+    ): List<Notice> {
+        // Don't cache CUSTOM ranges — they're ad-hoc. Always recompute.
+        if (period != AnalyticsPeriod.CUSTOM) {
+            val cached = noticesRepository.getForPeriod(periodKey)
+            val staleMillis = 24L * 60 * 60 * 1000
+            val isStale = cached.isEmpty() || (System.currentTimeMillis() - cached.first().computedAt) > staleMillis
+            if (!isStale) return cached
+        }
+
+        val computerPeriod = when (period) {
+            AnalyticsPeriod.WEEK -> NoticesComputer.Period.WEEK
+            AnalyticsPeriod.MONTH -> NoticesComputer.Period.MONTH
+            AnalyticsPeriod.THREE_MONTHS -> NoticesComputer.Period.THREE_MONTHS
+            AnalyticsPeriod.YEAR -> NoticesComputer.Period.YEAR
+            AnalyticsPeriod.CUSTOM -> NoticesComputer.Period.CUSTOM
+        }
+        val customBounds = if (period == AnalyticsPeriod.CUSTOM && customStart != null && customEnd != null) {
+            customStart to customEnd
+        } else null
+        val fresh = noticesComputer.compute(
+            current = current,
+            previous = previous,
+            categoryNames = categoryNames,
+            period = computerPeriod,
+            selectedDate = selectedDate,
+            creditCards = creditCards,
+            allTransactions = allTransactions,
+            cashbackTotal = cashbackTotal,
+            periodKey = periodKey,
+            customBounds = customBounds
+        )
+        if (period != AnalyticsPeriod.CUSTOM) {
+            noticesRepository.replaceForPeriod(periodKey, fresh)
+        }
+        return fresh
+    }
+
+    private fun Notice.toInsightItem(): InsightItem {
+        val route: InsightRoute? = routeJson?.let { raw ->
+            val parts = raw.split("|")
+            when (parts[0]) {
+                "MERCHANT" -> parts.getOrNull(1)?.let { InsightRoute.Merchant(it) }
+                "BILL" -> parts.getOrNull(1)?.toLongOrNull()?.let { InsightRoute.Bill(it) }
+                "SUBCATEGORY" -> {
+                    val catId = parts.getOrNull(1)?.toLongOrNull()
+                    val catName = parts.getOrNull(2)
+                    if (catId != null && catName != null) InsightRoute.SubCategory(catId, catName) else null
+                }
+                "DAY" -> parts.getOrNull(1)?.toLongOrNull()?.let { InsightRoute.Day(it) }
+                "SUBSCRIPTIONS" -> InsightRoute.Subscriptions
+                "NEW_MERCHANTS" -> InsightRoute.NewMerchants
+                "WEEKEND" -> InsightRoute.Weekend
+                "COMPARE" -> InsightRoute.Compare
+                else -> null
+            }
+        }
+        val chart = chartDataJson
+            ?.split(",")
+            ?.mapNotNull { it.trim().toFloatOrNull() }
+            ?.takeIf { it.isNotEmpty() }
+        return InsightItem(
+            title = title,
+            body = body,
+            isWarn = isWarn,
+            chartData = chart,
+            route = route
+        )
+    }
+
+    // Insight computation moved to NoticesComputer; Notice→InsightItem mapping handled above.
 
     /**
      * Load spending heatmap data for the last 24 months

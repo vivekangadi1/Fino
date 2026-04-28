@@ -24,7 +24,8 @@ import com.fino.app.domain.model.TransactionType
         Index("eventId"),
         Index("eventSubCategoryId"),
         Index("eventVendorId"),
-        Index("paymentStatus")
+        Index("paymentStatus"),
+        Index("accountId")
     ]
 )
 data class TransactionEntity(
@@ -59,5 +60,6 @@ data class TransactionEntity(
     val isAdvancePayment: Boolean = false,  // Whether this is an advance/partial payment
     val dueDate: Long? = null,              // Due date for pending payments (epoch millis)
     val expenseNotes: String? = null,       // Additional notes about the expense
-    val paymentStatus: PaymentStatus = PaymentStatus.PAID  // Payment status
+    val paymentStatus: PaymentStatus = PaymentStatus.PAID,  // Payment status
+    val accountId: Long? = null             // Soft FK to accounts table
 )

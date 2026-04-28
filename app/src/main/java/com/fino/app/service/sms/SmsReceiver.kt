@@ -5,8 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
+import com.fino.app.data.repository.CashbackRewardRepository
+import com.fino.app.data.repository.EventRepository
 import com.fino.app.data.repository.PatternSuggestionRepository
 import com.fino.app.data.repository.TransactionRepository
+import com.fino.app.service.parser.CashbackParser
 import com.fino.app.domain.model.Transaction
 import com.fino.app.domain.model.TransactionSource
 import com.fino.app.service.categorization.SmartCategorizationService
@@ -42,6 +45,12 @@ class SmsReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var patternSuggestionRepository: PatternSuggestionRepository
+
+    @Inject
+    lateinit var eventRepository: EventRepository
+
+    @Inject
+    lateinit var cashbackRewardRepository: CashbackRewardRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -86,6 +95,22 @@ class SmsReceiver : BroadcastReceiver() {
                 continue
             }
 
+            // Cashback SMS: not a regular transaction — capture and skip the parser.
+            if (CashbackParser.matches(body)) {
+                val reward = CashbackParser.parse(body)
+                if (reward != null) {
+                    scope.launch {
+                        try {
+                            cashbackRewardRepository.insert(reward)
+                            Log.d(TAG, "Cashback captured: ₹${reward.amount} from ${reward.source}")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to persist cashback", e)
+                        }
+                    }
+                }
+                continue
+            }
+
             // Try to parse the transaction
             val parsedTransaction = smsParser.parse(body)
 
@@ -107,6 +132,10 @@ class SmsReceiver : BroadcastReceiver() {
                         val categoryId = categorizationResult.categoryId
                         val categoryConfidence = categorizationResult.confidence
 
+                        val autoTagEvent = eventRepository.getAutoTagEventForDate(
+                            parsedTransaction.transactionDate.toLocalDate()
+                        )
+
                         val transaction = Transaction(
                             amount = parsedTransaction.amount,
                             type = parsedTransaction.type,
@@ -127,7 +156,8 @@ class SmsReceiver : BroadcastReceiver() {
                                 parsedTransaction.reference != null -> "UPI"
                                 else -> null
                             },
-                            cardLastFour = parsedTransaction.cardLastFour
+                            cardLastFour = parsedTransaction.cardLastFour,
+                            eventId = autoTagEvent?.id
                         )
 
                         val id = transactionRepository.insert(transaction)

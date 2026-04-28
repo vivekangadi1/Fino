@@ -39,7 +39,7 @@ fun ManageMerchantMappingsScreen(
     var mappingToDelete by remember { mutableStateOf<MerchantMapping?>(null) }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {

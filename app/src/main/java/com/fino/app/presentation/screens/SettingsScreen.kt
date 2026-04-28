@@ -29,13 +29,14 @@ import com.fino.app.presentation.viewmodel.SettingsViewModel
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMerchantMappings: () -> Unit = {},
+    onNavigateToMilestones: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showTimePickerDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -56,7 +57,7 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
@@ -156,6 +157,15 @@ fun SettingsScreen(
                     subtitle = "View and edit merchant-to-category mappings",
                     icon = Icons.Outlined.Category,
                     onClick = onNavigateToMerchantMappings
+                )
+            }
+
+            item {
+                SettingsItem(
+                    title = "Milestones",
+                    subtitle = "Level, streak, and achievements",
+                    icon = Icons.Outlined.EmojiEvents,
+                    onClick = onNavigateToMilestones
                 )
             }
 

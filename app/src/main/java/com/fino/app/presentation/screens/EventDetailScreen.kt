@@ -21,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
+import com.fino.app.domain.model.EventMember
 import com.fino.app.domain.model.EventSubCategorySummary
 import com.fino.app.domain.model.EventVendorSummary
 import com.fino.app.domain.model.Transaction
@@ -133,7 +136,7 @@ fun EventDetailScreen(
     }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddExpense,
@@ -294,6 +297,12 @@ fun EventDetailScreen(
                             startDate = event.startDate.toString(),
                             endDate = event.endDate?.toString() ?: "Ongoing"
                         )
+                    }
+
+                    if (uiState.members.isNotEmpty()) {
+                        item {
+                            MembersSplitSection(members = uiState.members)
+                        }
                     }
 
                     // Enhanced Budget Overview (with quoted, paid, pending)
@@ -866,7 +875,89 @@ private fun VendorsSection(
                     onEditClick = { onVendorClick(summary) }
                 )
             }
+
             Spacer(modifier = Modifier.height(8.dp))
         }
+    }
+}
+
+@Composable
+private fun MembersSplitSection(members: List<EventMember>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(DarkSurfaceVariant)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Split among ${members.size}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy((-8).dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            members.take(10).forEach { member ->
+                MemberAvatar(member = member)
+            }
+            if (members.size > 10) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(DarkSurface)
+                        .border(1.dp, DarkBackground, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+${members.size - 10}",
+                        fontSize = 10.sp,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        val equalShare = if (members.isNotEmpty()) 100f / members.size else 0f
+        Text(
+            text = "Split equally · ${"%.0f".format(equalShare)}% each",
+            fontSize = 11.sp,
+            color = TextSecondary
+        )
+    }
+}
+
+private val memberPalette = listOf(
+    Color(0xFF6F9C86),
+    Color(0xFFA88C6A),
+    Color(0xFF8C7AA0),
+    Color(0xFF6F85A6),
+    Color(0xFFA87070),
+    Color(0xFF5F8F8C)
+)
+
+@Composable
+private fun MemberAvatar(member: EventMember) {
+    val idx = (member.avatarSeed.hashCode() and Int.MAX_VALUE) % memberPalette.size
+    val color = memberPalette[idx]
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(2.dp, DarkBackground, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = member.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+            fontSize = 12.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

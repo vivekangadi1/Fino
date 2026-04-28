@@ -1,128 +1,195 @@
 package com.fino.app.presentation.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.fino.app.presentation.theme.tokens.*
 
 // ===========================================
-// FINO MODERN DARK THEME - CRED INSPIRED
+// FINO — QUIET LUXURY FINTECH
 // ===========================================
+// Legacy names are preserved and re-mapped to the new tokens so the 21 inherited screens
+// keep compiling. The ergonomic way to consume colors on new screens is via
+// MaterialTheme.colorScheme and the FinoColors composable accessors below.
 
-// Dark Background Palette
-val DarkBackground = Color(0xFF0D0D0D)       // Near black
-val DarkSurface = Color(0xFF1A1A2E)          // Dark purple-blue
-val DarkSurfaceVariant = Color(0xFF252542)   // Elevated surface
-val DarkSurfaceHigh = Color(0xFF2D2D4A)      // Higher elevation
+// --- Default (light-leaning) legacy aliases ---
+// These top-level vals are referenced throughout the codebase. They resolve to
+// the LIGHT tokens; screens that honor MaterialTheme.colorScheme will pick up
+// the correct value for the active theme regardless.
 
-// Primary Colors (Purple-Blue gradient endpoints)
-val PrimaryStart = Color(0xFF667EEA)         // Purple-blue
-val PrimaryEnd = Color(0xFF764BA2)           // Deep purple
-val Primary = Color(0xFF7C5CFF)              // Main purple
+val DarkBackground = PaperDark
+val DarkSurface = Paper2Dark
+val DarkSurfaceVariant = Paper3Dark
+val DarkSurfaceHigh = Paper3Dark
 
-// Secondary Colors (Teal-Green gradient endpoints)
-val SecondaryStart = Color(0xFF11998E)       // Teal
-val SecondaryEnd = Color(0xFF38EF7D)         // Bright green
-val Secondary = Color(0xFF00D9A5)            // Main teal
+val PrimaryStart = AccentLight
+val PrimaryEnd = AccentInkLight
+val Primary = AccentLight
 
-// Accent / Tertiary
-val Accent = Color(0xFFFFD700)               // Gold for XP/rewards
-val AccentPink = Color(0xFFFF6B9D)           // Pink accent
-val AccentCyan = Color(0xFF00E5FF)           // Cyan accent
+val SecondaryStart = Ink3Light
+val SecondaryEnd = Ink2Light
+val Secondary = Ink3Light
 
-// Text Colors
-val TextPrimary = Color(0xFFFFFFFF)          // White
-val TextSecondary = Color(0xFFB0B0C0)        // Muted grey-purple
-val TextTertiary = Color(0xFF6B6B80)         // Dimmed
-val TextOnGradient = Color(0xFFFFFFFF)       // Text on gradients
+val Accent = InkLight
+val AccentPink = WarnLight
+val AccentCyan = AccentInkLight
 
-// Status Colors (Vibrant versions)
-val Success = Color(0xFF00D9A5)              // Bright teal
-val Warning = Color(0xFFFFB800)              // Amber
-val Error = Color(0xFFFF5A5A)                // Soft red
-val Info = Color(0xFF5C9DFF)                 // Info blue
+val TextPrimary = InkLight
+val TextSecondary = Ink3Light
+val TextTertiary = Ink4Light
+val TextOnGradient = CardLight
 
-// Transaction Colors
-val ExpenseRed = Color(0xFFFF5A5A)           // Expense/Debit
-val IncomeGreen = Color(0xFF00D9A5)          // Income/Credit
-val ExpenseRedStart = Color(0xFFFF416C)      // Expense gradient start
-val ExpenseRedEnd = Color(0xFFFF4B2B)        // Expense gradient end
-val IncomeGreenStart = Color(0xFF11998E)     // Income gradient start
-val IncomeGreenEnd = Color(0xFF38EF7D)       // Income gradient end
+val Success = AccentLight
+val Warning = WarnLight
+val Error = NegativeLight
+val Info = AccentLight
 
-// Category Colors (Vibrant for dark theme)
-val CategoryFood = Color(0xFFFF7043)         // Orange-red
-val CategoryTransport = Color(0xFF5C9DFF)    // Blue
-val CategoryShopping = Color(0xFFE040FB)     // Purple-pink
-val CategoryHealth = Color(0xFF00E676)       // Green
-val CategoryEntertainment = Color(0xFFFFD740)// Yellow
-val CategoryBills = Color(0xFF78909C)        // Grey-blue
-val CategoryEducation = Color(0xFF18FFFF)    // Cyan
-val CategoryTravel = Color(0xFFFF80AB)       // Pink
-val CategoryGroceries = Color(0xFF69F0AE)    // Light green
-val CategoryPersonal = Color(0xFFB388FF)     // Light purple
-val CategoryOther = Color(0xFF90A4AE)        // Grey
+val ExpenseRed = NegativeLight
+val IncomeGreen = AccentLight
+val ExpenseRedStart = NegativeLight
+val ExpenseRedEnd = NegativeLight
+val IncomeGreenStart = AccentLight
+val IncomeGreenEnd = AccentLight
 
-// Budget Status
-val BudgetSafe = Color(0xFF00D9A5)           // Under budget
-val BudgetWarning = Color(0xFFFFB800)        // Approaching limit
-val BudgetDanger = Color(0xFFFF5A5A)         // Over budget
+val CategoryFood = C3Light
+val CategoryTransport = C2Light
+val CategoryShopping = C4Light
+val CategoryHealth = C1Light
+val CategoryEntertainment = C6Light
+val CategoryBills = Ink3Light
+val CategoryEducation = C5Light
+val CategoryTravel = C4Light
+val CategoryGroceries = C1Light
+val CategoryPersonal = C2Light
+val CategoryOther = Ink4Light
 
-// Gamification Colors
-val XpGold = Color(0xFFFFD700)               // XP points
-val XpGoldStart = Color(0xFFFFD700)          // XP gradient start
-val XpGoldEnd = Color(0xFFFFA500)            // XP gradient end
-val StreakFire = Color(0xFFFF5722)           // Streak fire
-val StreakFireStart = Color(0xFFFF416C)      // Streak gradient start
-val StreakFireEnd = Color(0xFFFF4B2B)        // Streak gradient end
+val BudgetSafe = AccentLight
+val BudgetWarning = WarnLight
+val BudgetDanger = NegativeLight
 
-// Achievement Tiers
-val AchievementLocked = Color(0xFF3D3D5C)    // Locked achievement
-val AchievementBronze = Color(0xFFCD7F32)    // Bronze tier
-val AchievementSilver = Color(0xFFC0C0C0)    // Silver tier
-val AchievementGold = Color(0xFFFFD700)      // Gold tier
-val AchievementPlatinum = Color(0xFFE5E4E2)  // Platinum tier
+val XpGold = Ink2Light
+val XpGoldStart = Ink2Light
+val XpGoldEnd = InkLight
+val StreakFire = WarnLight
+val StreakFireStart = WarnLight
+val StreakFireEnd = NegativeLight
 
-// Level Colors
-val Level1 = Color(0xFF5C9DFF)               // Beginner blue
-val Level2 = Color(0xFF00D9A5)               // Teal
-val Level3 = Color(0xFF69F0AE)               // Green
-val Level4 = Color(0xFFFFD740)               // Yellow
-val Level5 = Color(0xFFFFAB40)               // Orange
-val Level6 = Color(0xFFFF5722)               // Deep orange
-val Level7 = Color(0xFFE040FB)               // Purple
-val Level8 = Color(0xFFFFD700)               // Gold (max)
+val AchievementLocked = Ink5Light
+val AchievementBronze = Ink3Light
+val AchievementSilver = Ink4Light
+val AchievementGold = Ink2Light
+val AchievementPlatinum = Ink2Light
 
-// Card Gradients (for credit cards)
-val CardBlueStart = Color(0xFF667EEA)
-val CardBlueEnd = Color(0xFF764BA2)
-val CardGoldStart = Color(0xFFFFD700)
-val CardGoldEnd = Color(0xFFFF8C00)
-val CardPlatinumStart = Color(0xFF8E9AAF)
-val CardPlatinumEnd = Color(0xFFDEE2E6)
+val Level1 = AccentLight
+val Level2 = AccentLight
+val Level3 = AccentLight
+val Level4 = AccentLight
+val Level5 = AccentLight
+val Level6 = AccentLight
+val Level7 = AccentLight
+val Level8 = AccentLight
 
-// Overlay & Shadow
-val Overlay = Color(0x80000000)              // 50% black overlay
-val GlowPurple = Color(0x407C5CFF)           // Purple glow
-val GlowTeal = Color(0x4000D9A5)             // Teal glow
+val CardBlueStart = Paper2Light
+val CardBlueEnd = Paper3Light
+val CardGoldStart = Paper2Light
+val CardGoldEnd = Paper3Light
+val CardPlatinumStart = Paper2Light
+val CardPlatinumEnd = Paper3Light
 
-// Dividers & Borders
-val Divider = Color(0xFF2D2D4A)              // Subtle divider
-val Border = Color(0xFF3D3D5C)               // Card borders
+val Overlay = Color(0x80141310)
+val GlowPurple = AccentSoftLight
+val GlowTeal = AccentSoftLight
 
-// Legacy support (keeping old names for compatibility)
+val Divider = LineLight
+val Border = Line2Light
+
+// --- Legacy-prefixed aliases ---
 val FinoPrimary = Primary
 val FinoSecondary = Secondary
 val FinoAccent = Accent
-val FinoLightBackground = Color(0xFFFAFAFA)
-val FinoLightSurface = Color(0xFFFFFFFF)
-val FinoLightOnBackground = Color(0xFF1C1B1F)
-val FinoLightOnSurface = Color(0xFF1C1B1F)
+val FinoLightBackground = PaperLight
+val FinoLightSurface = CardLight
+val FinoLightOnBackground = InkLight
+val FinoLightOnSurface = InkLight
 val FinoDarkBackground = DarkBackground
 val FinoDarkSurface = DarkSurface
-val FinoDarkOnBackground = TextPrimary
-val FinoDarkOnSurface = TextPrimary
-val FinoOnPrimary = Color.White
-val FinoOnSecondary = Color.White
+val FinoDarkOnBackground = InkDark
+val FinoDarkOnSurface = InkDark
+val FinoOnPrimary = CardLight
+val FinoOnSecondary = CardLight
 val FinoSuccess = Success
 val FinoWarning = Warning
 val FinoError = Error
 val FinoDebit = ExpenseRed
 val FinoCredit = IncomeGreen
+
+/**
+ * Theme-aware color accessors. New screens should prefer these over the
+ * top-level aliases above.
+ */
+object FinoColors {
+    // Legacy static properties — retained for call-site compatibility. These point at
+    // the LIGHT tokens. For theme-reactive reads, use the @Composable accessors.
+    val background: Color get() = PaperLight
+    val surface: Color get() = CardLight
+    val surfaceVariant: Color get() = Paper2Light
+    val primary: Color get() = AccentLight
+    val secondary: Color get() = Ink2Light
+    val accent: Color get() = InkLight
+    val textPrimary: Color get() = InkLight
+    val textSecondary: Color get() = Ink3Light
+    val success: Color get() = AccentLight
+    val warning: Color get() = WarnLight
+    val error: Color get() = NegativeLight
+    val expense: Color get() = NegativeLight
+    val income: Color get() = AccentLight
+
+    // --- Theme-reactive accessors — prefer these in new composables. ---
+    @Composable @ReadOnlyComposable fun paper(): Color =
+        if (isSystemInDarkTheme()) PaperDark else PaperLight
+    @Composable @ReadOnlyComposable fun paper2(): Color =
+        if (isSystemInDarkTheme()) Paper2Dark else Paper2Light
+    @Composable @ReadOnlyComposable fun paper3(): Color =
+        if (isSystemInDarkTheme()) Paper3Dark else Paper3Light
+    @Composable @ReadOnlyComposable fun ink(): Color =
+        if (isSystemInDarkTheme()) InkDark else InkLight
+    @Composable @ReadOnlyComposable fun ink2(): Color =
+        if (isSystemInDarkTheme()) Ink2Dark else Ink2Light
+    @Composable @ReadOnlyComposable fun ink3(): Color =
+        if (isSystemInDarkTheme()) Ink3Dark else Ink3Light
+    @Composable @ReadOnlyComposable fun ink4(): Color =
+        if (isSystemInDarkTheme()) Ink4Dark else Ink4Light
+    @Composable @ReadOnlyComposable fun ink5(): Color =
+        if (isSystemInDarkTheme()) Ink5Dark else Ink5Light
+    @Composable @ReadOnlyComposable fun card(): Color =
+        if (isSystemInDarkTheme()) CardDark else CardLight
+    @Composable @ReadOnlyComposable fun cardTint(): Color =
+        if (isSystemInDarkTheme()) CardTintDark else CardTintLight
+    @Composable @ReadOnlyComposable fun line(): Color =
+        if (isSystemInDarkTheme()) LineDark else LineLight
+    @Composable @ReadOnlyComposable fun line2(): Color =
+        if (isSystemInDarkTheme()) Line2Dark else Line2Light
+    @Composable @ReadOnlyComposable fun accentColor(): Color =
+        if (isSystemInDarkTheme()) AccentDark else AccentLight
+    @Composable @ReadOnlyComposable fun accentSoft(): Color =
+        if (isSystemInDarkTheme()) AccentSoftDark else AccentSoftLight
+    @Composable @ReadOnlyComposable fun accentInk(): Color =
+        if (isSystemInDarkTheme()) AccentInkDark else AccentInkLight
+    @Composable @ReadOnlyComposable fun warn(): Color =
+        if (isSystemInDarkTheme()) WarnDark else WarnLight
+    @Composable @ReadOnlyComposable fun warnSoft(): Color =
+        if (isSystemInDarkTheme()) WarnSoftDark else WarnSoftLight
+    @Composable @ReadOnlyComposable fun positive(): Color =
+        if (isSystemInDarkTheme()) PositiveDark else PositiveLight
+    @Composable @ReadOnlyComposable fun negative(): Color =
+        if (isSystemInDarkTheme()) NegativeDark else NegativeLight
+
+    // Chart palette — theme-reactive.
+    @Composable @ReadOnlyComposable fun chart(): List<Color> =
+        if (isSystemInDarkTheme()) {
+            listOf(C1Dark, C2Dark, C3Dark, C4Dark, C5Dark, C6Dark)
+        } else {
+            listOf(C1Light, C2Light, C3Light, C4Light, C5Light, C6Light)
+        }
+}

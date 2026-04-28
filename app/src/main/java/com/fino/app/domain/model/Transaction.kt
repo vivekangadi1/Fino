@@ -67,7 +67,8 @@ data class Transaction(
     val isAdvancePayment: Boolean = false,
     val dueDate: LocalDate? = null,
     val expenseNotes: String? = null,
-    val paymentStatus: PaymentStatus = PaymentStatus.PAID
+    val paymentStatus: PaymentStatus = PaymentStatus.PAID,
+    val accountId: Long? = null
 ) {
     /**
      * Whether this transaction is associated with an event

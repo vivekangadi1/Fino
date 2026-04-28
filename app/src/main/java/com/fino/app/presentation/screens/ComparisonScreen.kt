@@ -34,7 +34,7 @@ fun ComparisonScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {

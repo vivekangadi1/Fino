@@ -39,4 +39,31 @@ interface RecurringRuleDao {
 
     @Query("UPDATE recurring_rules SET isActive = 0 WHERE id = :id")
     suspend fun deactivate(id: Long)
+
+    /**
+     * Match rules against a normalized merchant key (case-insensitive substring).
+     * Returns only active rules.
+     */
+    @Query(
+        """
+        SELECT * FROM recurring_rules
+        WHERE isActive = 1
+          AND LOWER(merchantPattern) LIKE '%' || LOWER(:normalizedMerchant) || '%'
+        LIMIT 1
+        """
+    )
+    suspend fun findByNormalizedMerchant(normalizedMerchant: String): RecurringRuleEntity?
+
+    /**
+     * Update lastOccurrence only if the new date is later than the stored value (or NULL).
+     * Keeps the dormant signal accurate without overwriting with older transactions.
+     */
+    @Query(
+        """
+        UPDATE recurring_rules
+        SET lastOccurrence = :date
+        WHERE id = :id AND (lastOccurrence IS NULL OR lastOccurrence < :date)
+        """
+    )
+    suspend fun updateLastOccurrenceIfNewer(id: Long, date: Long)
 }

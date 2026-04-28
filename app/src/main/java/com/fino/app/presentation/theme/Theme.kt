@@ -1,132 +1,139 @@
 package com.fino.app.presentation.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.fino.app.presentation.theme.tokens.*
 
 /**
- * Fino Dark Color Scheme - CRED Inspired
- * Premium dark theme with vibrant purple/teal accents
- */
-private val FinoDarkColorScheme = darkColorScheme(
-    // Primary
-    primary = Primary,
-    onPrimary = TextPrimary,
-    primaryContainer = DarkSurfaceVariant,
-    onPrimaryContainer = TextPrimary,
-
-    // Secondary
-    secondary = Secondary,
-    onSecondary = TextPrimary,
-    secondaryContainer = DarkSurfaceVariant,
-    onSecondaryContainer = TextPrimary,
-
-    // Tertiary
-    tertiary = Accent,
-    onTertiary = DarkBackground,
-    tertiaryContainer = DarkSurfaceHigh,
-    onTertiaryContainer = Accent,
-
-    // Background
-    background = DarkBackground,
-    onBackground = TextPrimary,
-
-    // Surface
-    surface = DarkSurface,
-    onSurface = TextPrimary,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = TextSecondary,
-
-    // Error
-    error = Error,
-    onError = TextPrimary,
-    errorContainer = Error.copy(alpha = 0.2f),
-    onErrorContainer = Error,
-
-    // Outline
-    outline = Border,
-    outlineVariant = Divider,
-
-    // Inverse
-    inverseSurface = TextPrimary,
-    inverseOnSurface = DarkBackground,
-    inversePrimary = Primary,
-
-    // Scrim
-    scrim = Overlay
-)
-
-/**
- * Fino Light Color Scheme (fallback)
- * Minimal light theme for accessibility
+ * Fino Light Color Scheme — warm paper.
  */
 private val FinoLightColorScheme = lightColorScheme(
-    primary = Primary,
-    onPrimary = Color.White,
-    primaryContainer = Primary.copy(alpha = 0.1f),
-    onPrimaryContainer = Primary,
+    primary = AccentLight,
+    onPrimary = CardLight,
+    primaryContainer = AccentSoftLight,
+    onPrimaryContainer = AccentInkLight,
 
-    secondary = Secondary,
-    onSecondary = Color.White,
-    secondaryContainer = Secondary.copy(alpha = 0.1f),
-    onSecondaryContainer = Secondary,
+    secondary = Ink2Light,
+    onSecondary = CardLight,
+    secondaryContainer = Paper2Light,
+    onSecondaryContainer = InkLight,
 
-    tertiary = Accent,
-    onTertiary = DarkBackground,
+    tertiary = WarnLight,
+    onTertiary = CardLight,
+    tertiaryContainer = WarnSoftLight,
+    onTertiaryContainer = InkLight,
 
-    background = Color(0xFFFAFAFA),
-    onBackground = Color(0xFF1C1B1F),
+    background = PaperLight,
+    onBackground = InkLight,
 
-    surface = Color.White,
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFF0F0F5),
-    onSurfaceVariant = Color(0xFF49454F),
+    surface = PaperLight,
+    onSurface = InkLight,
+    surfaceVariant = Paper2Light,
+    onSurfaceVariant = Ink3Light,
+    surfaceContainer = CardLight,
+    surfaceContainerHigh = CardTintLight,
+    surfaceContainerHighest = Paper2Light,
+    surfaceContainerLow = PaperLight,
+    surfaceContainerLowest = PaperLight,
 
-    error = Error,
-    onError = Color.White
+    error = NegativeLight,
+    onError = CardLight,
+    errorContainer = WarnSoftLight,
+    onErrorContainer = NegativeLight,
+
+    outline = Line2Light,
+    outlineVariant = LineLight,
+
+    inverseSurface = InkLight,
+    inverseOnSurface = PaperLight,
+    inversePrimary = AccentDark,
+
+    scrim = InkLight
 )
 
 /**
- * Custom shapes for Fino UI
- * More rounded corners for playful look
+ * Fino Dark Color Scheme — deep paper.
+ */
+private val FinoDarkColorScheme = darkColorScheme(
+    primary = AccentDark,
+    onPrimary = InkLight,
+    primaryContainer = AccentSoftDark,
+    onPrimaryContainer = AccentInkDark,
+
+    secondary = Ink2Dark,
+    onSecondary = PaperDark,
+    secondaryContainer = Paper2Dark,
+    onSecondaryContainer = InkDark,
+
+    tertiary = WarnDark,
+    onTertiary = InkLight,
+    tertiaryContainer = WarnSoftDark,
+    onTertiaryContainer = InkDark,
+
+    background = PaperDark,
+    onBackground = InkDark,
+
+    surface = PaperDark,
+    onSurface = InkDark,
+    surfaceVariant = Paper2Dark,
+    onSurfaceVariant = Ink3Dark,
+    surfaceContainer = CardDark,
+    surfaceContainerHigh = CardTintDark,
+    surfaceContainerHighest = Paper2Dark,
+    surfaceContainerLow = PaperDark,
+    surfaceContainerLowest = PaperDark,
+
+    error = NegativeDark,
+    onError = InkLight,
+    errorContainer = WarnSoftDark,
+    onErrorContainer = NegativeDark,
+
+    outline = Line2Dark,
+    outlineVariant = LineDark,
+
+    inverseSurface = InkDark,
+    inverseOnSurface = PaperDark,
+    inversePrimary = AccentLight,
+
+    scrim = InkDark
+)
+
+/**
+ * Shape scale — quiet luxury uses restrained corners.
  */
 val FinoShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 /**
- * Fino Theme Composable
- * Default to dark theme for premium feel
+ * Fino Theme composable — now follows the system setting by default.
  */
 @Composable
 fun FinoTheme(
-    darkTheme: Boolean = true, // Default to dark theme
-    dynamicColor: Boolean = false, // Disable dynamic to keep brand colors
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // Always use dark theme for consistent premium look
-    // Can be changed later for user preference
     val colorScheme = if (darkTheme) FinoDarkColorScheme else FinoLightColorScheme
 
-    // Update status bar color
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Dark status bar for dark theme
-            window.statusBarColor = DarkBackground.toArgb()
-            window.navigationBarColor = DarkBackground.toArgb()
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme
@@ -140,23 +147,4 @@ fun FinoTheme(
         typography = FinoTypography,
         content = content
     )
-}
-
-/**
- * Extension to get Fino-specific colors easily
- */
-object FinoColors {
-    val background = DarkBackground
-    val surface = DarkSurface
-    val surfaceVariant = DarkSurfaceVariant
-    val primary = Primary
-    val secondary = Secondary
-    val accent = Accent
-    val textPrimary = TextPrimary
-    val textSecondary = TextSecondary
-    val success = Success
-    val warning = Warning
-    val error = Error
-    val expense = ExpenseRed
-    val income = IncomeGreen
 }

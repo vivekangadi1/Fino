@@ -30,6 +30,7 @@ data class EventEntity(
     val status: EventStatus = EventStatus.ACTIVE,
     val isActive: Boolean = true,
     val excludeFromMainTotals: Boolean = false,  // If true, event expenses excluded from main totals
+    val autoTagTransactions: Boolean = false,    // Auto-tag transactions in this event's date range
     val createdAt: Long,              // Epoch millis
     val updatedAt: Long               // Epoch millis
 )

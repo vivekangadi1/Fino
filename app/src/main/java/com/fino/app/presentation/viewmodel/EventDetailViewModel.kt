@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fino.app.data.repository.CategoryRepository
 import com.fino.app.data.repository.EventAnalyticsRepository
+import com.fino.app.data.repository.EventMemberRepository
 import com.fino.app.data.repository.EventRepository
 import com.fino.app.data.repository.EventSubCategoryRepository
 import com.fino.app.data.repository.EventTypeRepository
@@ -14,6 +15,7 @@ import com.fino.app.domain.model.CategorySpending
 import com.fino.app.domain.model.DailySpending
 import com.fino.app.domain.model.Event
 import com.fino.app.domain.model.EventBudgetStatus
+import com.fino.app.domain.model.EventMember
 import com.fino.app.domain.model.EventSubCategory
 import com.fino.app.domain.model.EventSubCategorySummary
 import com.fino.app.domain.model.EventVendor
@@ -51,6 +53,7 @@ data class EventDetailUiState(
     val totalPending: Double = 0.0,
     val vendorNames: Map<Long, String> = emptyMap(),
     val subCategoryNames: Map<Long, String> = emptyMap(),
+    val members: List<EventMember> = emptyList(),
 
     val isLoading: Boolean = true,
     val isDeleting: Boolean = false,
@@ -70,7 +73,8 @@ class EventDetailViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val eventSubCategoryRepository: EventSubCategoryRepository,
     private val eventVendorRepository: EventVendorRepository,
-    private val eventAnalyticsRepository: EventAnalyticsRepository
+    private val eventAnalyticsRepository: EventAnalyticsRepository,
+    private val eventMemberRepository: EventMemberRepository
 ) : ViewModel() {
 
     private val eventId: Long = checkNotNull(savedStateHandle["eventId"])
@@ -81,6 +85,15 @@ class EventDetailViewModel @Inject constructor(
     init {
         loadEventDetails()
         loadEventExpenseData()
+        loadMembers()
+    }
+
+    private fun loadMembers() {
+        viewModelScope.launch {
+            eventMemberRepository.getByEventFlow(eventId).collect { members ->
+                _uiState.update { it.copy(members = members) }
+            }
+        }
     }
 
     /**

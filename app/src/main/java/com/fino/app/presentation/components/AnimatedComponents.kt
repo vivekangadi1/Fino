@@ -317,6 +317,7 @@ fun AnimatedCircularProgress(
 /**
  * Sparkle/shine effect for celebratory moments.
  */
+@Deprecated("Retired for quiet-luxury aesthetic. Do not use in new code.")
 @Composable
 fun SparkleEffect(
     modifier: Modifier = Modifier,
@@ -354,6 +355,7 @@ fun SparkleEffect(
 /**
  * Fire animation for streaks.
  */
+@Deprecated("Retired for quiet-luxury aesthetic. Do not use in new code.")
 @Composable
 fun FireAnimation(
     modifier: Modifier = Modifier,
@@ -406,6 +408,7 @@ fun BouncingArrow(
 /**
  * Celebration confetti burst (simple version).
  */
+@Deprecated("Retired for quiet-luxury aesthetic. Do not use in new code.")
 @Composable
 fun ConfettiBurst(
     modifier: Modifier = Modifier,

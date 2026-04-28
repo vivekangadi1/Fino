@@ -14,8 +14,11 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideTransactionRepository(dao: TransactionDao): TransactionRepository {
-        return TransactionRepository(dao)
+    fun provideTransactionRepository(
+        dao: TransactionDao,
+        recurringRuleDao: RecurringRuleDao
+    ): TransactionRepository {
+        return TransactionRepository(dao, recurringRuleDao)
     }
 
     @Provides

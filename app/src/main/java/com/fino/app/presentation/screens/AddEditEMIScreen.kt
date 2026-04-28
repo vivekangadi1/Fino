@@ -44,7 +44,7 @@ fun AddEditEMIScreen(
     }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -65,7 +65,7 @@ fun AddEditEMIScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }

@@ -3,10 +3,12 @@ package com.fino.app.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fino.app.data.repository.EventMemberRepository
 import com.fino.app.data.repository.EventRepository
 import com.fino.app.data.repository.EventSubCategoryRepository
 import com.fino.app.data.repository.EventTypeRepository
 import com.fino.app.domain.model.Event
+import com.fino.app.domain.model.EventMember
 import com.fino.app.domain.model.EventStatus
 import com.fino.app.domain.model.EventSubCategory
 import com.fino.app.domain.model.EventType
@@ -24,6 +26,11 @@ import javax.inject.Inject
 /**
  * UI State for creating/editing an event
  */
+data class EventMemberDraft(
+    val name: String,
+    val seed: String = name
+)
+
 data class CreateEventUiState(
     val isEditMode: Boolean = false,
     val editingEventId: Long? = null,
@@ -40,6 +47,8 @@ data class CreateEventUiState(
     val hasEndDate: Boolean = false,
     val endDate: LocalDate = LocalDate.now().plusDays(7),
     val excludeFromMainTotals: Boolean = false,
+    val members: List<EventMemberDraft> = emptyList(),
+    val autoTagTransactions: Boolean = false,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
     val isLoading: Boolean = false,
@@ -54,7 +63,8 @@ class CreateEventViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val eventRepository: EventRepository,
     private val eventTypeRepository: EventTypeRepository,
-    private val eventSubCategoryRepository: EventSubCategoryRepository
+    private val eventSubCategoryRepository: EventSubCategoryRepository,
+    private val eventMemberRepository: EventMemberRepository
 ) : ViewModel() {
 
     private val eventId: Long? = savedStateHandle.get<Long>("eventId")
@@ -78,6 +88,8 @@ class CreateEventViewModel @Inject constructor(
             try {
                 val event = eventRepository.getById(eventId)
                 if (event != null) {
+                    val existingMembers = eventMemberRepository.getByEvent(eventId)
+                        .map { EventMemberDraft(name = it.name, seed = it.avatarSeed) }
                     _uiState.update {
                         it.copy(
                             isEditMode = true,
@@ -94,6 +106,8 @@ class CreateEventViewModel @Inject constructor(
                             hasEndDate = event.endDate != null,
                             endDate = event.endDate ?: LocalDate.now().plusDays(7),
                             excludeFromMainTotals = event.excludeFromMainTotals,
+                            autoTagTransactions = event.autoTagTransactions,
+                            members = existingMembers,
                             isLoading = false
                         )
                     }
@@ -220,6 +234,34 @@ class CreateEventViewModel @Inject constructor(
     }
 
     /**
+     * Toggle auto-tag transactions in event date range
+     */
+    fun setAutoTagTransactions(enabled: Boolean) {
+        _uiState.update { it.copy(autoTagTransactions = enabled) }
+    }
+
+    /**
+     * Add a member to the event
+     */
+    fun addMember(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        _uiState.update { state ->
+            if (state.members.any { it.name.equals(trimmed, ignoreCase = true) }) state
+            else state.copy(members = state.members + EventMemberDraft(name = trimmed))
+        }
+    }
+
+    /**
+     * Remove a member from the event
+     */
+    fun removeMember(name: String) {
+        _uiState.update { state ->
+            state.copy(members = state.members.filterNot { it.name == name })
+        }
+    }
+
+    /**
      * Save the event (create new or update existing)
      */
     fun saveEvent() {
@@ -274,9 +316,11 @@ class CreateEventViewModel @Inject constructor(
                             startDate = state.startDate,
                             endDate = if (state.hasEndDate) state.endDate else null,
                             excludeFromMainTotals = state.excludeFromMainTotals,
+                            autoTagTransactions = state.autoTagTransactions,
                             updatedAt = LocalDateTime.now()
                         )
                         eventRepository.update(updatedEvent)
+                        syncMembers(state.editingEventId, state.members)
                     }
                 } else {
                     // Create new event
@@ -294,6 +338,7 @@ class CreateEventViewModel @Inject constructor(
                         status = EventStatus.ACTIVE,
                         isActive = true,
                         excludeFromMainTotals = state.excludeFromMainTotals,
+                        autoTagTransactions = state.autoTagTransactions,
                         createdAt = LocalDateTime.now(),
                         updatedAt = LocalDateTime.now()
                     )
@@ -303,6 +348,18 @@ class CreateEventViewModel @Inject constructor(
                     val eventType = state.eventTypes.find { it.id == state.selectedEventTypeId }
                     if (eventType != null && newEventId > 0) {
                         createDefaultSubCategories(newEventId, eventType.name)
+                    }
+
+                    if (newEventId > 0 && state.members.isNotEmpty()) {
+                        eventMemberRepository.insertAll(
+                            state.members.map { draft ->
+                                EventMember(
+                                    eventId = newEventId,
+                                    name = draft.name,
+                                    avatarSeed = draft.seed
+                                )
+                            }
+                        )
                     }
                 }
 
@@ -332,6 +389,19 @@ class CreateEventViewModel @Inject constructor(
         _uiState.update {
             CreateEventUiState(eventTypes = it.eventTypes, selectedEventTypeId = it.selectedEventTypeId)
         }
+    }
+
+    /**
+     * Diff existing members vs. drafts: insert new names, delete removed ones.
+     */
+    private suspend fun syncMembers(eventId: Long, drafts: List<EventMemberDraft>) {
+        val existing = eventMemberRepository.getByEvent(eventId)
+        val draftNames = drafts.map { it.name }.toSet()
+        existing.filter { it.name !in draftNames }.forEach { eventMemberRepository.delete(it) }
+        val existingNames = existing.map { it.name }.toSet()
+        val toInsert = drafts.filter { it.name !in existingNames }
+            .map { draft -> EventMember(eventId = eventId, name = draft.name, avatarSeed = draft.seed) }
+        if (toInsert.isNotEmpty()) eventMemberRepository.insertAll(toInsert)
     }
 
     /**

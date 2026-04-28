@@ -52,7 +52,7 @@ fun EMITrackerScreen(
     var showDeleteDialog by remember { mutableStateOf<Any?>(null) }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -73,7 +73,7 @@ fun EMITrackerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },

@@ -48,7 +48,7 @@ fun TypeTransactionsScreen(
     }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {

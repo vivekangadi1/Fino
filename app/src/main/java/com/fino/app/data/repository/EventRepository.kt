@@ -143,6 +143,14 @@ class EventRepository @Inject constructor(
         return eventDao.getEventsForDate(dateMillis).map { it.toDomain() }
     }
 
+    /**
+     * Most-recent auto-tag-enabled active event whose date range contains the given date.
+     */
+    suspend fun getAutoTagEventForDate(date: LocalDate): Event? {
+        val dateMillis = DateUtils.toEpochMillis(date)
+        return eventDao.getAutoTagEventForDate(dateMillis)?.toDomain()
+    }
+
     private fun EventEntity.toDomain(): Event {
         return Event(
             id = id,
@@ -158,6 +166,7 @@ class EventRepository @Inject constructor(
             status = status,
             isActive = isActive,
             excludeFromMainTotals = excludeFromMainTotals,
+            autoTagTransactions = autoTagTransactions,
             createdAt = DateUtils.fromEpochMillis(createdAt),
             updatedAt = DateUtils.fromEpochMillis(updatedAt)
         )
@@ -178,6 +187,7 @@ class EventRepository @Inject constructor(
             status = status,
             isActive = isActive,
             excludeFromMainTotals = excludeFromMainTotals,
+            autoTagTransactions = autoTagTransactions,
             createdAt = DateUtils.toEpochMillis(createdAt),
             updatedAt = DateUtils.toEpochMillis(updatedAt)
         )

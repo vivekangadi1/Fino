@@ -4,61 +4,54 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fino.app.domain.model.CreditCard
-import com.fino.app.presentation.components.*
-import com.fino.app.presentation.theme.*
+import com.fino.app.presentation.components.FinoBottomNavBar
+import com.fino.app.presentation.components.primitives.CreditCardItem
+import com.fino.app.presentation.components.primitives.EMIRow
+import com.fino.app.presentation.components.primitives.Eyebrow
+import com.fino.app.presentation.components.primitives.HairlineDivider
+import com.fino.app.presentation.theme.FinoColors
+import com.fino.app.presentation.theme.Newsreader
+import com.fino.app.presentation.theme.NumericStyle
 import com.fino.app.presentation.viewmodel.CardsViewModel
+import com.fino.app.presentation.viewmodel.EMIRowData
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardsScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToActivity: () -> Unit = {},
     onNavigateToRewards: () -> Unit,
     onAddCard: () -> Unit = {},
     onEditCard: (Long) -> Unit = {},
     onNavigateToEMITracker: () -> Unit = {},
+    onAddTransaction: () -> Unit = {},
     viewModel: CardsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentRoute by remember { mutableStateOf("cards") }
 
     Scaffold(
-        containerColor = DarkBackground,
-        floatingActionButton = {
-            // Gradient FAB
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(FinoGradients.Primary)
-                    .clickable { onAddCard() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Card",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
+        containerColor = FinoColors.paper(),
         bottomBar = {
             FinoBottomNavBar(
                 currentRoute = currentRoute,
@@ -66,10 +59,11 @@ fun CardsScreen(
                     currentRoute = route
                     when (route) {
                         "home" -> onNavigateToHome()
-                        "analytics" -> onNavigateToAnalytics()
-                        "rewards" -> onNavigateToRewards()
+                        "activity" -> onNavigateToActivity()
+                        "insights" -> onNavigateToAnalytics()
                     }
-                }
+                },
+                onAddClick = onAddTransaction
             )
         }
     ) { paddingValues ->
@@ -77,454 +71,286 @@ fun CardsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Header
+            item { CardsTopBar(onAddCard = onAddCard) }
+            item { TotalDueBlock(state = uiState) }
             item {
-                CardsHeader()
-            }
-
-            // Cards Section
-            item {
-                CardsSectionContent(
+                CardStack(
                     cards = uiState.cards,
-                    totalCreditLimit = uiState.totalCreditLimit,
-                    totalOutstanding = uiState.totalOutstanding,
-                    isLoading = uiState.isLoading
+                    isLoading = uiState.isLoading,
+                    onEditCard = onEditCard
                 )
             }
-
-            // EMI Tracker Link
             item {
-                EMITrackerSection(onNavigateToEMITracker = onNavigateToEMITracker)
-            }
-
-            // Tips Section
-            item {
-                CardsTipsSection()
+                ActiveEMISection(
+                    emis = uiState.activeEMIs,
+                    total = uiState.totalEMICount,
+                    onSeeAll = onNavigateToEMITracker
+                )
             }
         }
     }
 }
 
 @Composable
-private fun EMITrackerSection(onNavigateToEMITracker: () -> Unit) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-    ) {
-        SlideInCard(delay = 250) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Secondary.copy(alpha = 0.2f),
-                                Primary.copy(alpha = 0.1f)
-                            )
-                        )
-                    )
-                    .clickable(onClick = onNavigateToEMITracker)
-                    .padding(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Primary.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.AccountBalanceWallet,
-                                contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = "EMI & Loan Tracker",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Track your EMIs and loans in one place",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = TextSecondary
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardsHeader() {
-    Box(
+private fun CardsTopBar(onAddCard: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(DarkSurface, DarkBackground)
-                )
-            )
-            .padding(20.dp)
+            .padding(start = 24.dp, end = 18.dp, top = 8.dp, bottom = 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
-            Text(
-                text = "Credit Cards",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Manage your cards and track due dates",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+        Text(
+            text = "Cards & loans",
+            fontSize = 18.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.Medium,
+            color = FinoColors.ink()
+        )
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onAddCard),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Add,
+                contentDescription = "Add card",
+                tint = FinoColors.ink2(),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-private fun CardsSectionContent(
+private fun TotalDueBlock(state: com.fino.app.presentation.viewmodel.CardsUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 16.dp)
+    ) {
+        val nextDue = state.cards
+            .filter { it.previousDueDate != null || it.dueDateDay != null }
+            .minByOrNull { nextDueDaysLeft(it) }
+        val cardCount = state.cards.size
+        val outstandingLabel = "Outstanding · $cardCount card${if (cardCount == 1) "" else "s"}"
+        Eyebrow(text = outstandingLabel)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "₹${formatIndianLoose(state.totalOutstanding)}",
+            fontFamily = Newsreader,
+            fontSize = 44.sp,
+            lineHeight = 46.sp,
+            fontWeight = FontWeight.Normal,
+            letterSpacing = (-1.32).sp,
+            color = FinoColors.ink(),
+            style = NumericStyle
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = nextDueSubtitle(nextDue),
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            color = FinoColors.ink3()
+        )
+    }
+}
+
+private fun nextDueDaysLeft(card: CreditCard): Long {
+    val today = LocalDate.now()
+    val due = card.effectiveDueDate
+        ?: card.dueDateDay?.let { day ->
+            val month = if (today.dayOfMonth > day) today.plusMonths(1) else today
+            val clamped = day.coerceAtMost(month.lengthOfMonth())
+            month.withDayOfMonth(clamped)
+        }
+    return if (due != null) ChronoUnit.DAYS.between(today, due).coerceAtLeast(0L) else Long.MAX_VALUE
+}
+
+private fun nextDueSubtitle(card: CreditCard?): String {
+    if (card == null) return "No upcoming bill"
+    val days = nextDueDaysLeft(card)
+    val name = listOfNotNull(card.bankName, card.cardName).joinToString(" ")
+    return when {
+        days == Long.MAX_VALUE -> "No upcoming bill"
+        days == 0L -> "Due today · $name"
+        days == 1L -> "Due tomorrow · $name"
+        else -> "Next due in $days days · $name"
+    }
+}
+
+@Composable
+private fun CardStack(
     cards: List<CreditCard>,
-    totalCreditLimit: Double,
-    totalOutstanding: Double,
-    isLoading: Boolean
+    isLoading: Boolean,
+    onEditCard: (Long) -> Unit
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        if (isLoading) {
-            // Loading state
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary)
-            }
-        } else if (cards.isEmpty()) {
-            // Empty State - Credit Card Visual
-            SlideInCard(delay = 100) {
+        when {
+            isLoading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.586f) // Credit card aspect ratio
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(DarkSurfaceVariant, DarkSurfaceHigh)
-                            )
-                        ),
+                        .padding(40.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Credit card outline icon
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.CreditCard,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = Primary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No cards added yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "Add your credit cards to track spending",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
+                    CircularProgressIndicator(color = FinoColors.accentColor())
                 }
             }
-        } else {
-            // Summary Section
-            SlideInCard(delay = 100) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(DarkSurfaceVariant)
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Total Limit",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                            AnimatedCounter(
-                                targetValue = totalCreditLimit.toInt(),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary,
-                                prefix = "₹",
-                                formatAsRupees = true
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Outstanding",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                            AnimatedCounter(
-                                targetValue = totalOutstanding.toInt(),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = ExpenseRed,
-                                prefix = "₹",
-                                formatAsRupees = true
-                            )
-                        }
-                    }
+            cards.isEmpty() -> EmptyCardsState()
+            else -> {
+                cards.forEach { card ->
+                    CardRow(card = card, onClick = { onEditCard(card.id) })
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Credit Cards List
-            cards.forEachIndexed { index, card ->
-                SlideInCard(delay = 150 + (index * 50)) {
-                    CreditCardItem(card)
-                }
-                if (index < cards.lastIndex) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Add Card Button
-        SlideInCard(delay = if (cards.isEmpty()) 200 else 300 + (cards.size * 50)) {
-            BouncyButton(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth(),
-                gradient = FinoGradients.Primary
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    tint = TextPrimary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Add Credit Card",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
             }
         }
     }
 }
 
 @Composable
-private fun CreditCardItem(card: CreditCard) {
-    Box(
+private fun CardRow(card: CreditCard, onClick: () -> Unit) {
+    val outstanding = card.currentUnbilled + card.previousDue
+    val limit = card.creditLimit ?: 0.0
+    val utilization = if (limit > 0) (outstanding / limit).toFloat() else 0f
+    val daysLeft = nextDueDaysLeft(card)
+    val warn = utilization > 0.7f || (daysLeft in 0..5)
+    val bankAndName = listOfNotNull(card.bankName, card.cardName).joinToString(" · ")
+    val dueAmount = "₹${formatIndianLoose(outstanding)}"
+    val dueMeta = buildString {
+        append("Due ")
+        append(
+            card.effectiveDueDate?.let { formatShortDate(it) }
+                ?: card.dueDateDay?.let { "${it}th" }
+                ?: "—"
+        )
+        card.minimumDue?.takeIf { it > 0 }?.let {
+            append(" · min ₹${formatIndianLoose(it)}")
+        }
+    }
+    val limitLabel = if (limit > 0) "of ₹${formatIndianLoose(limit)}" else "no limit set"
+    CreditCardItem(
+        bankAndName = bankAndName,
+        last4 = "•••• ${card.lastFourDigits}",
+        due = dueAmount,
+        dueMeta = dueMeta,
+        utilizationPercent = utilization.coerceIn(0f, 1f),
+        totalLimitLabel = limitLabel,
+        isWarn = warn,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun EmptyCardsState() {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Primary.copy(alpha = 0.3f),
-                        Secondary.copy(alpha = 0.2f)
-                    )
-                )
-            )
-            .padding(20.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(FinoColors.cardTint())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column {
+        Text(
+            text = "No cards yet",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = FinoColors.ink()
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "Tap + to add your first credit card",
+            fontSize = 12.sp,
+            color = FinoColors.ink3()
+        )
+    }
+}
+
+@Composable
+private fun ActiveEMISection(
+    emis: List<EMIRowData>,
+    total: Int,
+    onSeeAll: () -> Unit
+) {
+    if (total == 0) return
+    val activeCount = emis.size
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Eyebrow(text = "Active EMIs")
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.clickable(onClick = onSeeAll),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = card.bankName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    text = "$activeCount of $total",
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = FinoColors.ink3()
                 )
-                Text(
-                    text = "•••• ${card.lastFourDigits}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            }
-
-            card.cardName?.let { name ->
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Credit Limit",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextTertiary
-                    )
-                    Text(
-                        text = "₹${(card.creditLimit ?: 0.0).toInt()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Outstanding",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextTertiary
-                    )
-                    val outstanding = card.currentUnbilled + card.previousDue
-                    Text(
-                        text = "₹${outstanding.toInt()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (outstanding > 0) ExpenseRed else TextPrimary
-                    )
-                }
-            }
-
-            // Due date info if available
-            card.dueDateDay?.let { dueDay ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Outlined.CalendarMonth,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = TextSecondary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Due on ${dueDay}th of every month",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
-                    )
-                }
             }
         }
-    }
-}
-
-@Composable
-private fun CardsTipsSection() {
-    Column(
-        modifier = Modifier.padding(20.dp)
-    ) {
-        Text(
-            text = "Card Benefits",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Tips List
-        val tips = listOf(
-            CardTip("📅", "Due Date Alerts", "Never miss a payment again"),
-            CardTip("📊", "Spending Insights", "Track spending per card"),
-            CardTip("💳", "Bill Tracking", "Auto-detect card transactions"),
-            CardTip("🎯", "Credit Score", "Coming soon")
-        )
-
-        tips.forEachIndexed { index, tip ->
-            SlideInCard(delay = 300 + (index * 50)) {
-                TipRow(tip)
-            }
-            if (index < tips.lastIndex) {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun TipRow(tip: CardTip) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Spacer(Modifier.height(12.dp))
+        if (emis.isEmpty()) {
             Text(
-                text = tip.emoji,
-                fontSize = 28.sp
+                text = "No active EMIs",
+                fontSize = 12.sp,
+                color = FinoColors.ink3(),
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tip.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = TextPrimary
-                )
-                Text(
-                    text = tip.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
+        } else {
+            emis.forEachIndexed { index, row ->
+                if (index == 0) HairlineDivider()
+                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    EMIRow(
+                        name = row.name,
+                        sub = row.sub,
+                        monthlyAmount = "₹${formatIndianLoose(row.monthlyAmount)}",
+                        progress = row.progress,
+                        remainingLabel = "₹${formatShortAmount(row.remainingAmount)} left"
+                    )
+                }
+                if (index < emis.lastIndex) HairlineDivider()
             }
         }
     }
 }
 
-private data class CardTip(
-    val emoji: String,
-    val title: String,
-    val subtitle: String
-)
+private fun formatIndianLoose(amount: Double): String {
+    if (amount <= 0) return "0"
+    return String.format("%,.0f", amount)
+}
+
+private fun formatShortAmount(amount: Double): String {
+    if (amount <= 0) return "0"
+    return when {
+        amount >= 100_000 -> String.format("%.1fL", amount / 100_000)
+        amount >= 1_000 -> String.format("%,.0f", amount)
+        else -> String.format("%.0f", amount)
+    }
+}
+
+private fun formatShortDate(date: LocalDate): String {
+    val month = date.month.getDisplayName(
+        java.time.format.TextStyle.SHORT,
+        java.util.Locale.ENGLISH
+    )
+    return "$month ${date.dayOfMonth}"
+}

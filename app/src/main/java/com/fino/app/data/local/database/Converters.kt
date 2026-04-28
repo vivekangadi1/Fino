@@ -1,11 +1,16 @@
 package com.fino.app.data.local.database
 
 import androidx.room.TypeConverter
+import com.fino.app.domain.model.AccountSource
+import com.fino.app.domain.model.AccountType
 import com.fino.app.domain.model.AchievementType
+import com.fino.app.domain.model.BillEntitySource
+import com.fino.app.domain.model.BillEntityStatus
 import com.fino.app.domain.model.EMIStatus
 import com.fino.app.domain.model.EventStatus
 import com.fino.app.domain.model.LoanStatus
 import com.fino.app.domain.model.LoanType
+import com.fino.app.domain.model.NoticeType
 import com.fino.app.domain.model.PaymentStatus
 import com.fino.app.domain.model.RecurringFrequency
 import com.fino.app.domain.model.TransactionSource
@@ -75,4 +80,39 @@ class Converters {
 
     @TypeConverter
     fun toLoanType(value: String): LoanType = LoanType.valueOf(value)
+
+    // AccountType
+    @TypeConverter
+    fun fromAccountType(type: AccountType): String = type.name
+
+    @TypeConverter
+    fun toAccountType(value: String): AccountType = AccountType.valueOf(value)
+
+    // AccountSource
+    @TypeConverter
+    fun fromAccountSource(source: AccountSource): String = source.name
+
+    @TypeConverter
+    fun toAccountSource(value: String): AccountSource = AccountSource.valueOf(value)
+
+    // BillEntityStatus
+    @TypeConverter
+    fun fromBillEntityStatus(status: BillEntityStatus): String = status.name
+
+    @TypeConverter
+    fun toBillEntityStatus(value: String): BillEntityStatus = BillEntityStatus.valueOf(value)
+
+    // BillEntitySource
+    @TypeConverter
+    fun fromBillEntitySource(source: BillEntitySource): String = source.name
+
+    @TypeConverter
+    fun toBillEntitySource(value: String): BillEntitySource = BillEntitySource.valueOf(value)
+
+    // NoticeType
+    @TypeConverter
+    fun fromNoticeType(type: NoticeType): String = type.name
+
+    @TypeConverter
+    fun toNoticeType(value: String): NoticeType = NoticeType.valueOf(value)
 }

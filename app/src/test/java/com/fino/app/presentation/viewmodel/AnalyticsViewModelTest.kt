@@ -1,8 +1,12 @@
 package com.fino.app.presentation.viewmodel
 
 import com.fino.app.data.repository.BudgetRepository
+import com.fino.app.data.repository.CashbackRewardRepository
 import com.fino.app.data.repository.CategoryRepository
+import com.fino.app.data.repository.CreditCardRepository
+import com.fino.app.data.repository.NoticesRepository
 import com.fino.app.data.repository.TransactionRepository
+import com.fino.app.service.notices.NoticesComputer
 import com.fino.app.domain.model.Budget
 import com.fino.app.domain.model.BudgetStatus
 import com.fino.app.domain.model.Category
@@ -33,6 +37,10 @@ class AnalyticsViewModelTest {
     private lateinit var mockTransactionRepository: TransactionRepository
     private lateinit var mockCategoryRepository: CategoryRepository
     private lateinit var mockBudgetRepository: BudgetRepository
+    private lateinit var mockCreditCardRepository: CreditCardRepository
+    private lateinit var mockCashbackRewardRepository: CashbackRewardRepository
+    private lateinit var mockNoticesRepository: NoticesRepository
+    private lateinit var mockNoticesComputer: NoticesComputer
     private lateinit var mockExportService: com.fino.app.service.export.ExportService
     private lateinit var mockForecastService: com.fino.app.service.forecast.ForecastService
     private lateinit var viewModel: AnalyticsViewModel
@@ -90,15 +98,34 @@ class AnalyticsViewModelTest {
         mockTransactionRepository = mock()
         mockCategoryRepository = mock()
         mockBudgetRepository = mock()
+        mockCreditCardRepository = mock()
+        mockCashbackRewardRepository = mock()
+        mockNoticesRepository = mock()
+        mockNoticesComputer = mock()
         mockExportService = mock()
         mockForecastService = mock()
 
         whenever(mockTransactionRepository.getAllTransactionsFlow()).thenReturn(flowOf(testTransactions))
         whenever(mockCategoryRepository.getAllActive()).thenReturn(flowOf(testCategories))
+        whenever(mockCreditCardRepository.getActiveCardsFlow()).thenReturn(flowOf(emptyList()))
+        whenever(mockNoticesRepository.getForPeriodFlow(any())).thenReturn(flowOf(emptyList()))
 
         // Default: return empty budgets
         runBlocking {
             whenever(mockBudgetRepository.getBudgetsForMonth(any())).thenReturn(emptyList())
+            whenever(mockCashbackRewardRepository.getTotalForPeriod(any())).thenReturn(0.0)
+            whenever(mockNoticesRepository.getForPeriod(any())).thenReturn(emptyList())
+            whenever(mockNoticesComputer.compute(
+                current = any(),
+                previous = any(),
+                categoryNames = any(),
+                period = any(),
+                selectedDate = any(),
+                creditCards = any(),
+                allTransactions = any(),
+                cashbackTotal = any(),
+                periodKey = any()
+            )).thenReturn(emptyList())
         }
     }
 
@@ -112,6 +139,10 @@ class AnalyticsViewModelTest {
             transactionRepository = mockTransactionRepository,
             categoryRepository = mockCategoryRepository,
             budgetRepository = mockBudgetRepository,
+            creditCardRepository = mockCreditCardRepository,
+            cashbackRewardRepository = mockCashbackRewardRepository,
+            noticesRepository = mockNoticesRepository,
+            noticesComputer = mockNoticesComputer,
             exportService = mockExportService,
             forecastService = mockForecastService
         )

@@ -36,6 +36,7 @@ data class Event(
     val status: EventStatus = EventStatus.ACTIVE,
     val isActive: Boolean = true,
     val excludeFromMainTotals: Boolean = false,
+    val autoTagTransactions: Boolean = false,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now()
 ) {

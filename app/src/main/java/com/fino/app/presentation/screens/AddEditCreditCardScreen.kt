@@ -37,7 +37,7 @@ fun AddEditCreditCardScreen(
     }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -68,7 +68,7 @@ fun AddEditCreditCardScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }

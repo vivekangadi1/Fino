@@ -118,3 +118,22 @@ projectsjdk17.zip
 # Temp files
 progress.txt
 run_tests.bat
+
+# Personal data dumps and debug artifacts (DO NOT COMMIT)
+sms_dump.txt
+raw_sms_dump.txt
+emi_sms.txt
+temp_db.db
+*.db
+logcat_crash.txt
+uidump.xml
+
+# Personal documents
+Copy of Wedding Expense.xlsx
+*.xlsx
+*.epub
+
+# Local design references
+.design-ref/
+.design-ref-v2/
+.design-ref-v3/

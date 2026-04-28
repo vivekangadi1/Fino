@@ -1,5 +1,6 @@
 package com.fino.app.data.repository
 
+import com.fino.app.data.local.dao.RecurringRuleDao
 import com.fino.app.data.local.dao.TransactionDao
 import com.fino.app.data.local.entity.TransactionEntity
 import com.fino.app.domain.model.Transaction
@@ -18,12 +19,14 @@ import java.time.ZoneId
 class TransactionRepositoryTest {
 
     private lateinit var mockDao: TransactionDao
+    private lateinit var mockRecurringDao: RecurringRuleDao
     private lateinit var repository: TransactionRepository
 
     @Before
     fun setup() {
         mockDao = mock()
-        repository = TransactionRepository(mockDao)
+        mockRecurringDao = mock()
+        repository = TransactionRepository(mockDao, mockRecurringDao)
     }
 
     @Test

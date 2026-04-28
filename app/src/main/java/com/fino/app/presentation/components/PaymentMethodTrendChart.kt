@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.TrendingFlat
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,8 +25,19 @@ import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.component.shapeComponent
+import com.patrykandpatrick.vico.compose.component.textComponent
+import com.patrykandpatrick.vico.compose.dimensions.dimensionsOf
+import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
+import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
+import com.patrykandpatrick.vico.core.axis.AxisPosition
+import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import com.patrykandpatrick.vico.core.component.marker.MarkerComponent
+import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.entry.entryModelOf
+import com.patrykandpatrick.vico.core.marker.Marker
 import java.text.NumberFormat
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
@@ -98,28 +110,49 @@ fun PaymentMethodTrendChart(
 
             // Multi-line chart showing all payment methods
             if (paymentMethodTrend.monthlyUsage.isNotEmpty()) {
+                // Create month labels from data
+                val monthLabels = remember(paymentMethodTrend) {
+                    paymentMethodTrend.monthlyUsage.map { usage ->
+                        usage.yearMonth.format(DateTimeFormatter.ofPattern("MMM"))
+                    }
+                }
+
+                // Custom x-axis formatter for month names
+                val bottomAxisFormatter = remember(monthLabels) {
+                    AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+                        monthLabels.getOrElse(value.toInt()) { "" }
+                    }
+                }
+
+                // Custom y-axis formatter for rupee formatting
+                val startAxisFormatter = remember {
+                    AxisValueFormatter<AxisPosition.Vertical.Start> { value, _ ->
+                        formatRupeeAxisPayment(value)
+                    }
+                }
+
                 val upiEntries = paymentMethodTrend.monthlyUsage.mapIndexed { index, usage ->
                     index.toFloat() to usage.upiAmount.toFloat()
-                }
-                val creditCardEntries = paymentMethodTrend.monthlyUsage.mapIndexed { index, usage ->
-                    index.toFloat() to usage.creditCardAmount.toFloat()
-                }
-                val debitCardEntries = paymentMethodTrend.monthlyUsage.mapIndexed { index, usage ->
-                    index.toFloat() to usage.debitCardAmount.toFloat()
                 }
 
                 // For now, show UPI trend (in production, would show multiple lines)
                 val chartEntryModel = entryModelOf(*upiEntries.toTypedArray())
 
-                Chart(
-                    chart = lineChart(),
-                    model = chartEntryModel,
-                    startAxis = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                )
+                // Create marker for tap interactivity
+                val marker = rememberPaymentMarker()
+
+                ProvideChartStyle(m3ChartStyle()) {
+                    Chart(
+                        chart = lineChart(),
+                        model = chartEntryModel,
+                        startAxis = rememberStartAxis(valueFormatter = startAxisFormatter),
+                        bottomAxis = rememberBottomAxis(valueFormatter = bottomAxisFormatter),
+                        marker = marker,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -259,5 +292,39 @@ private fun PaymentMethodCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * Format rupee values for y-axis display
+ */
+private fun formatRupeeAxisPayment(value: Float): String {
+    return when {
+        value >= 100000 -> "₹${String.format("%.1f", value / 100000)}L"
+        value >= 1000 -> "₹${String.format("%.0f", value / 1000)}K"
+        else -> "₹${value.toInt()}"
+    }
+}
+
+/**
+ * Create a marker for payment method chart tap interactivity
+ */
+@Composable
+private fun rememberPaymentMarker(): Marker {
+    val labelComponent = textComponent(
+        color = androidx.compose.ui.graphics.Color.White,
+        background = shapeComponent(
+            shape = Shapes.roundedCornerShape(allPercent = 25),
+            color = DarkSurfaceHigh
+        ),
+        padding = dimensionsOf(horizontal = 8.dp, vertical = 4.dp)
+    )
+
+    return remember {
+        MarkerComponent(
+            label = labelComponent,
+            indicator = null,
+            guideline = null
+        )
     }
 }

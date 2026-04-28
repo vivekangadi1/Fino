@@ -34,7 +34,7 @@ fun FamilyMembersScreen(
     var memberToDelete by remember { mutableStateOf<FamilyMember?>(null) }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -63,7 +63,7 @@ fun FamilyMembersScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }

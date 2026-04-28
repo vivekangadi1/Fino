@@ -47,6 +47,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE creditCardId = :creditCardId ORDER BY transactionDate DESC")
     suspend fun getByCreditCard(creditCardId: Long): List<TransactionEntity>
 
+    @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY transactionDate DESC")
+    suspend fun getTransactionsByAccountId(accountId: Long): List<TransactionEntity>
+
     @Query("SELECT * FROM transactions WHERE merchantName LIKE :merchantPattern ORDER BY transactionDate DESC")
     suspend fun getByMerchant(merchantPattern: String): List<TransactionEntity>
 

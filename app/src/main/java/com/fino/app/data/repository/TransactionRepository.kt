@@ -1,5 +1,6 @@
 package com.fino.app.data.repository
 
+import com.fino.app.data.local.dao.RecurringRuleDao
 import com.fino.app.data.local.dao.TransactionDao
 import com.fino.app.data.local.entity.TransactionEntity
 import com.fino.app.domain.model.PaymentStatus
@@ -13,7 +14,8 @@ import javax.inject.Singleton
 
 @Singleton
 class TransactionRepository @Inject constructor(
-    private val dao: TransactionDao
+    private val dao: TransactionDao,
+    private val recurringRuleDao: RecurringRuleDao
 ) {
 
     fun getAllTransactionsFlow(): Flow<List<Transaction>> {
@@ -45,7 +47,17 @@ class TransactionRepository @Inject constructor(
     }
 
     suspend fun insert(transaction: Transaction): Long {
-        return dao.insert(transaction.toEntity())
+        val id = dao.insert(transaction.toEntity())
+        val normalized = transaction.merchantNormalized ?: transaction.merchantName
+        if (normalized.isNotBlank()) {
+            recurringRuleDao.findByNormalizedMerchant(normalized)?.let { rule ->
+                recurringRuleDao.updateLastOccurrenceIfNewer(
+                    rule.id,
+                    DateUtils.toEpochMillis(transaction.transactionDate)
+                )
+            }
+        }
+        return id
     }
 
     suspend fun update(transaction: Transaction) {
@@ -239,7 +251,8 @@ class TransactionRepository @Inject constructor(
             isAdvancePayment = isAdvancePayment,
             dueDate = dueDate?.let { DateUtils.toLocalDate(it) },
             expenseNotes = expenseNotes,
-            paymentStatus = paymentStatus
+            paymentStatus = paymentStatus,
+            accountId = accountId
         )
     }
 
@@ -273,7 +286,8 @@ class TransactionRepository @Inject constructor(
             isAdvancePayment = isAdvancePayment,
             dueDate = dueDate?.let { DateUtils.toEpochMillis(it) },
             expenseNotes = expenseNotes,
-            paymentStatus = paymentStatus
+            paymentStatus = paymentStatus,
+            accountId = accountId
         )
     }
 }

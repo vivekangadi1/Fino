@@ -1,17 +1,71 @@
 package com.fino.app.presentation.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fino.app.presentation.screens.*
+import com.fino.app.presentation.screens.insights.BillDetailScreen
+import com.fino.app.presentation.screens.insights.CompareDetailScreen
+import com.fino.app.presentation.screens.insights.DayDetailScreen
+import com.fino.app.presentation.screens.insights.MerchantDetailScreen
+import com.fino.app.presentation.screens.insights.NewMerchantsDetailScreen
+import com.fino.app.presentation.screens.insights.SubscriptionsDetailScreen
+import com.fino.app.presentation.screens.insights.WeekendDetailScreen
+
+private const val DETAIL_ANIM_MS = 320
+
+private fun detailEnter(): EnterTransition =
+    slideInHorizontally(
+        animationSpec = tween(DETAIL_ANIM_MS),
+        initialOffsetX = { fullWidth -> fullWidth }
+    ) + fadeIn(animationSpec = tween(DETAIL_ANIM_MS))
+
+private fun detailExit(): ExitTransition =
+    fadeOut(animationSpec = tween(DETAIL_ANIM_MS / 2))
+
+private fun detailPopEnter(): EnterTransition =
+    fadeIn(animationSpec = tween(DETAIL_ANIM_MS / 2))
+
+private fun detailPopExit(): ExitTransition =
+    slideOutHorizontally(
+        animationSpec = tween(DETAIL_ANIM_MS),
+        targetOffsetX = { fullWidth -> fullWidth }
+    ) + fadeOut(animationSpec = tween(DETAIL_ANIM_MS))
+
+/**
+ * Shared transition helpers for Insights drill-in detail routes.
+ * All 7 drill-in destinations reuse identical slide-in-right + fade (320ms).
+ */
+private val detailEnterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?) =
+    { detailEnter() }
+private val detailExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition?) =
+    { detailExit() }
+private val detailPopEnterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?) =
+    { detailPopEnter() }
+private val detailPopExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition?) =
+    { detailPopExit() }
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
+    object Activity : Screen("activity?tab={tab}") {
+        fun createRoute(tab: String? = null): String =
+            if (tab.isNullOrBlank()) "activity" else "activity?tab=$tab"
+    }
     object Cards : Screen("cards")
-    object Analytics : Screen("analytics")
+    object Analytics : Screen("insights")
     object Rewards : Screen("rewards")
     object Settings : Screen("settings")
     object AddTransaction : Screen("add_transaction")
@@ -81,11 +135,38 @@ sealed class Screen(val route: String) {
     object EditCreditCardBill : Screen("edit_credit_card_bill/{cardId}") {
         fun createRoute(cardId: Long) = "edit_credit_card_bill/$cardId"
     }
+
+    // Insights drill-in routes (Phase A)
+    object SubscriptionsDetail : Screen("insights/subscriptions")
+    object MerchantDetail : Screen("insights/merchant/{merchantKey}") {
+        fun createRoute(merchantKey: String): String {
+            val encoded = java.net.URLEncoder.encode(merchantKey, "UTF-8")
+            return "insights/merchant/$encoded"
+        }
+    }
+    object BillDetail : Screen("insights/bill/{billId}") {
+        fun createRoute(billId: Long) = "insights/bill/$billId"
+    }
+    object DayDetail : Screen("insights/day/{epochDay}") {
+        fun createRoute(epochDay: Long) = "insights/day/$epochDay"
+    }
+    object CompareDetail : Screen("insights/compare")
+    object WeekendDetail : Screen("insights/weekend")
+    object NewMerchantsDetail : Screen("insights/new_merchants")
 }
 
 @Composable
-fun FinoNavigation() {
+fun FinoNavigation(
+    pendingDeepLink: String? = null,
+    onDeepLinkConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(pendingDeepLink) {
+        val route = pendingDeepLink ?: return@LaunchedEffect
+        runCatching { navController.navigate(route) }
+        onDeepLinkConsumed()
+    }
 
     NavHost(
         navController = navController,
@@ -95,13 +176,14 @@ fun FinoNavigation() {
             HomeScreen(
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
+                onNavigateToActivity = { navController.navigate(Screen.Activity.createRoute()) },
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
                 onAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
-                onNavigateToUpcomingBills = { navController.navigate(Screen.UpcomingBills.route) },
+                onNavigateToUpcomingBills = { navController.navigate(Screen.Activity.createRoute("upcoming")) },
                 onAddRecurringBill = { navController.navigate(Screen.AddRecurringBill.createRoute()) },
                 onEditRecurringBill = { ruleId -> navController.navigate(Screen.AddRecurringBill.createRoute(ruleId)) },
                 onEditTransaction = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) },
-                onNavigateToEvents = { navController.navigate(Screen.Events.route) },
+                onNavigateToEvents = { navController.navigate(Screen.Activity.createRoute("events")) },
                 onNavigateToEventDetail = { eventId -> navController.navigate(Screen.EventDetail.createRoute(eventId)) },
                 onNavigateToReviewUncategorized = { navController.navigate(Screen.ReviewUncategorized.route) },
                 onNavigateToPeriodTransactions = { startDate, endDate, periodLabel ->
@@ -109,7 +191,8 @@ fun FinoNavigation() {
                 },
                 onNavigateToTypeTransactions = { transactionType, label ->
                     navController.navigate(Screen.TypeTransactions.createRoute(transactionType, label))
-                }
+                },
+                onNavigateToSettings = { navController.navigate(Screen.SettingsScreen.route) }
             )
         }
 
@@ -117,10 +200,39 @@ fun FinoNavigation() {
             CardsScreen(
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
+                onNavigateToActivity = { navController.navigate(Screen.Activity.createRoute()) },
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
                 onAddCard = { navController.navigate(Screen.AddEditCreditCard.createRoute()) },
                 onEditCard = { cardId -> navController.navigate(Screen.AddEditCreditCard.createRoute(cardId)) },
-                onNavigateToEMITracker = { navController.navigate(Screen.EMITracker.route) }
+                onNavigateToEMITracker = { navController.navigate(Screen.EMITracker.route) },
+                onAddTransaction = { navController.navigate(Screen.AddTransaction.route) }
+            )
+        }
+
+        composable(
+            route = Screen.Activity.route,
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val tabArg = backStackEntry.arguments?.getString("tab")
+            ActivityScreen(
+                onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
+                onNavigateToCards = { navController.navigate(Screen.Cards.route) },
+                onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
+                onAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
+                onTransactionClick = { transactionId -> navController.navigate(Screen.EditTransaction.createRoute(transactionId)) },
+                onAddBill = { navController.navigate(Screen.AddRecurringBill.createRoute()) },
+                onEditBill = { ruleId -> navController.navigate(Screen.AddRecurringBill.createRoute(ruleId)) },
+                onEditCreditCardBill = { cardId -> navController.navigate(Screen.EditCreditCardBill.createRoute(cardId)) },
+                onScanPatterns = { navController.navigate(Screen.PatternSuggestions.route) },
+                onCreateEvent = { navController.navigate(Screen.CreateEvent.route) },
+                onEventClick = { eventId -> navController.navigate(Screen.EventDetail.createRoute(eventId)) },
+                initialTab = activityTabFromArg(tabArg)
             )
         }
 
@@ -128,6 +240,7 @@ fun FinoNavigation() {
             AnalyticsScreen(
                 onNavigateToHome = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route) { inclusive = true } } },
                 onNavigateToCards = { navController.navigate(Screen.Cards.route) },
+                onNavigateToActivity = { navController.navigate(Screen.Activity.createRoute()) },
                 onNavigateToRewards = { navController.navigate(Screen.Rewards.route) },
                 onNavigateToComparison = { navController.navigate(Screen.Comparison.route) },
                 onCategoryClick = { categoryId, categoryName ->
@@ -135,6 +248,111 @@ fun FinoNavigation() {
                 },
                 onPaymentMethodClick = { method, filter ->
                     navController.navigate(Screen.PaymentMethodTransactions.createRoute(method, filter))
+                },
+                onAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
+                onNavigateToSubscriptions = { navController.navigate(Screen.SubscriptionsDetail.route) },
+                onNavigateToMerchant = { merchantKey ->
+                    navController.navigate(Screen.MerchantDetail.createRoute(merchantKey))
+                },
+                onNavigateToBill = { cardId ->
+                    navController.navigate(Screen.BillDetail.createRoute(cardId))
+                },
+                onNavigateToDay = { epochDay ->
+                    navController.navigate(Screen.DayDetail.createRoute(epochDay))
+                },
+                onNavigateToCompare = { navController.navigate(Screen.CompareDetail.route) },
+                onNavigateToWeekend = { navController.navigate(Screen.WeekendDetail.route) },
+                onNavigateToNewMerchants = { navController.navigate(Screen.NewMerchantsDetail.route) }
+            )
+        }
+
+        // Insights drill-in routes (Phase A) — all share detailTransitions()
+        composable(
+            route = Screen.SubscriptionsDetail.route,
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            SubscriptionsDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.MerchantDetail.route,
+            arguments = listOf(navArgument("merchantKey") { type = NavType.StringType }),
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            MerchantDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.BillDetail.route,
+            arguments = listOf(navArgument("billId") { type = NavType.LongType }),
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            BillDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.DayDetail.route,
+            arguments = listOf(navArgument("epochDay") { type = NavType.LongType }),
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            DayDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CompareDetail.route,
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            CompareDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.WeekendDetail.route,
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            WeekendDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.NewMerchantsDetail.route,
+            enterTransition = detailEnterTransition,
+            exitTransition = detailExitTransition,
+            popEnterTransition = detailPopEnterTransition,
+            popExitTransition = detailPopExitTransition
+        ) {
+            NewMerchantsDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenMerchant = { merchantKey ->
+                    navController.navigate(Screen.MerchantDetail.createRoute(merchantKey))
                 }
             )
         }
@@ -349,6 +567,9 @@ fun FinoNavigation() {
                 onNavigateBack = { navController.popBackStack() },
                 onTransactionClick = { transactionId ->
                     navController.navigate(Screen.EditTransaction.createRoute(transactionId))
+                },
+                onOpenMerchant = { merchantKey ->
+                    navController.navigate(Screen.MerchantDetail.createRoute(merchantKey))
                 }
             )
         }
@@ -485,7 +706,8 @@ fun FinoNavigation() {
         composable(Screen.SettingsScreen.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToMerchantMappings = { navController.navigate(Screen.ManageMerchantMappings.route) }
+                onNavigateToMerchantMappings = { navController.navigate(Screen.ManageMerchantMappings.route) },
+                onNavigateToMilestones = { navController.navigate(Screen.Rewards.route) }
             )
         }
     }

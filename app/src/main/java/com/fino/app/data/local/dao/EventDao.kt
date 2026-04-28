@@ -44,6 +44,19 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE startDate <= :date AND (endDate IS NULL OR endDate >= :date) ORDER BY startDate DESC")
     suspend fun getEventsForDate(date: Long): List<EventEntity>
 
+    @Query(
+        """
+        SELECT * FROM events
+        WHERE autoTagTransactions = 1
+          AND isActive = 1
+          AND startDate <= :date
+          AND (endDate IS NULL OR endDate >= :date)
+        ORDER BY startDate DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getAutoTagEventForDate(date: Long): EventEntity?
+
     @Query("UPDATE events SET status = :status, updatedAt = :updatedAt WHERE id = :eventId")
     suspend fun updateStatus(eventId: Long, status: EventStatus, updatedAt: Long)
 
